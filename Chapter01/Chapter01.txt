@@ -1,0 +1,120 @@
+Listing 1-1. A Sample PL/SQL Block
+
+DECLARE
+  v_item_code VARCHAR2(6);
+  v_item_descr VARCHAR2(20);
+BEGIN
+  v_item_code :='ITM101';
+  v_item_descr :='Spare parts';
+  INSERT INTO items_tab VALUES (v_item_code,v_item_descr);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+END;
+/
+
+
+Listing 1-2. The Modified PL/SQL Code That Uses a Nested Block
+
+DECLARE
+  v_item_code VARCHAR2(6);
+  v_item_descr VARCHAR2(20);
+  v_num NUMBER(1);
+BEGIN
+  v_item_code :='ITM101';
+  v_item_descr :='Spare parts';
+  BEGIN
+    SELECT 1
+    INTO v_num
+    FROM items_tab
+    WHERE item_code =v_item_code;
+  EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+      v_num :=0;
+    WHEN OTHERS THEN
+      dbms_output.put_line('Error in SELECT:'||SQLERRM);
+      RETURN;
+  END;
+  IF (v_num =0)THEN
+    INSERT INTO items_tab VALUES (v_item_code,v_item_descr);
+  END IF;
+  dbms_output.put_line('Successful Completion');
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+END;
+/
+
+-- An example of the IF statement
+DECLARE
+  a number :=50;
+  b number :=-20;
+BEGIN
+  IF (a>b)THEN
+    dbms_output.put_line('A is greater than B');
+  ELSIF (a<b)THEN
+    dbms_output.put_line('A is < than B');
+  ELSE
+    dbms_output.put_line('A is equal to B');
+  END IF;
+END;
+/
+
+-- An example of the simple LOOP
+DECLARE
+  line_length NUMBER :=50;
+  seperator VARCHAR2(1):='=';
+  actual_line VARCHAR2(150);
+  i NUMBER :=1;
+BEGIN
+  LOOP
+    actual_line :=actual_line ||seperator;
+    EXIT WHEN i =line_length;
+    i:=i +1;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE(actual_line);
+END;
+/
+
+-- A numeric FOR LOOP
+DECLARE
+  line_length NUMBER :=50;
+  seperator VARCHAR2(1):='=';
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..line_length LOOP
+    actual_line :=actual_line ||seperator;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE(actual_line);
+END;
+/
+
+-- An example using a WHILE LOOP
+DECLARE
+  line_length NUMBER :=50;
+  seperator VARCHAR2(1):='=';
+  actual_line VARCHAR2(150);
+  idx NUMBER :=1;
+BEGIN
+WHILE (idx<=line_length)LOOP
+actual_line :=actual_line ||seperator;
+idx :=idx +1 ;
+END LOOP;
+DBMS_OUTPUT.PUT_LINE(actual_line);
+END;
+/
+
+-- An example of comparison of two numbers
+-- using a searched CASE expression
+declare
+  a number :=20;
+  b number :=-40;
+  string varchar2(50);
+begin
+  string :=case
+             when (a>b)then 'A is greater than B'
+             when (a<b)then 'A is less than B'
+           else
+             'A is equal to B'
+           end;
+  dbms_output.put_line(string);
+end;
+/

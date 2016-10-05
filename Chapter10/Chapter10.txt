@@ -1,0 +1,800 @@
+--Defining an object type
+CREATE OR REPLACE TYPE address AS OBJECT
+			(line1 VARCHAR2(20),
+			 line2 VARCHAR2(20),
+			 city VARCHAR2(20),
+			 state_code VARCHAR2(2),
+			 zip VARCHAR2(13));
+
+-- Object instances and initialization
+DECLARE
+  off_add address :=address('19 J','Reading Rd','Edison','NJ','08817');
+BEGIN
+  DBMS_OUTPUT.PUT_LINE(off_add.line1||' '||off_add.line2);
+  DBMS_OUTPUT.PUT_LINE(off_add.city||', '||off_add.state_code||' '||off_add.zip);
+END;
+/
+
+-- NULL objects and NULL attributes
+DECLARE
+  v_address address;
+BEGIN
+  --v_address has a value
+  v_address :=address('27 Mine Brook Rd','#99-A','Edison','NJ','08820');
+  v_address :=NULL; -- v_address becomes atomically null.
+  IF (v_address IS NULL) THEN -- condition returns TRUE
+    DBMS_OUTPUT.PUT_LINE('v_address is atomically null');
+  END IF;
+END;
+/
+DECLARE
+  v_address address;
+BEGIN
+  IF (v_address IS NULL) THEN -- Returns TRUE
+    DBMS_OUTPUT.PUT_LINE('v_address is atomically null ');
+  END IF;
+  IF (v_address.line1 IS NULL) THEN -- Returns TRUE
+    DBMS_OUTPUT.PUT_LINE('line1 is null ');
+  END IF;
+  --v_address has a value
+  v_address :=address('27 Mine Brook Rd','#99-A','Edison','NJ','08820');
+  v_address :=NULL;--v_address becomes atomically null.
+  IF (v_address IS NULL) THEN -- condition returns TRUE
+    DBMS_OUTPUT.PUT_LINE('v_address is atomically null ');
+  END IF;
+  v_address.line1 :='1,Ethel Road'; --raises ACCESS_INTO_NULL
+EXCEPTION WHEN ACCESS_INTO_NULL THEN
+  DBMS_OUTPUT.PUT_LINE('Access Into Null');
+END;
+/
+
+-- Methods
+CREATE OR REPLACE TYPE address AS OBJECT
+			(line1 VARCHAR2(20),
+			 line2 VARCHAR2(20),
+			 city VARCHAR2(20),
+			 state_code VARCHAR2(2),
+			 zip VARCHAR2(13),
+  MEMBER FUNCTION get_address RETURN VARCHAR2,
+  MEMBER PROCEDURE set_address
+			(ip_line1 VARCHAR2,
+			 ip_line2 VARCHAR2,
+			 ip_city VARCHAR2,
+			 ip_state_code VARCHAR2,
+			 ip_zip VARCHAR2)
+);
+/
+CREATE OR REPLACE TYPE BODY address AS
+  MEMBER FUNCTION get_address RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN (SELF.line1||' '||SELF.line2||' '||SELF.city||', '||
+            SELF.state_code||' '||SELF.zip);
+  END get_address;
+  MEMBER PROCEDURE set_address (ip_line1 VARCHAR2,
+				ip_line2 VARCHAR2,
+				ip_city VARCHAR2,
+				ip_state_code VARCHAR2,
+				ip_zip VARCHAR2)
+  IS
+  BEGIN
+    line1 :=ip_line1;
+    line2 :=ip_line2;
+    city :=ip_city;
+    state_code :=ip_state_code;
+    zip :=ip_zip;
+  END set_address;
+END;
+/
+
+-- Invoking a method
+DECLARE
+  off_add address;
+  home_add address;
+BEGIN
+  off_add :=address('10 Wood Avenue South','Suite 111','Edison','NJ','08830');
+  home_add :=address(null,null,null,null,null);
+  DBMS_OUTPUT.PUT_LINE(off_add.get_address());
+  home_add.set_address('161 Franklin Rd','#180','Edison','NJ','08820');
+  DBMS_OUTPUT.PUT_LINE(home_add.get_address());
+END;
+/
+
+-- Static Method
+CREATE OR REPLACE TYPE zip_code AS OBJECT
+(five_digit_code NUMBER,
+ four_digit_code NUMBER,
+ STATIC FUNCTION getZip(zip_in zip_code) RETURN zip_Code
+);
+/
+CREATE OR REPLACE TYPE BODY zip_code AS
+  STATIC FUNCTION getZip(zip_in zip_code) RETURN zip_code
+  IS
+    v_zip zip_code;
+  BEGIN	
+    v_zip :=zip_code(null,null);
+    v_zip.five_digit_code :=zip_in.five_digit_code;
+    v_zip.four_digit_code :=zip_in.four_digit_code;
+    RETURN (v_zip);
+   END;
+END;
+/
+
+-- User-defined constructors
+CREATE OR REPLACE TYPE address2 AS OBJECT
+			(line1 VARCHAR2(20),
+			 line2 VARCHAR2(20),
+			 city VARCHAR2(20),
+			 state_code VARCHAR2(2),
+			 zip VARCHAR2(13),
+			 country VARCHAR(3),
+  CONSTRUCTOR FUNCTION address2(ip_line1 VARCHAR2,
+				ip_line2 VARCHAR2,
+				ip_city VARCHAR2,
+				ip_state_code VARCHAR2,
+				ip_zip VARCHAR2)
+  RETURN SELF AS RESULT);
+/
+CREATE OR REPLACE TYPE BODY address2 IS
+  CONSTRUCTOR FUNCTION address2(ip_line1 VARCHAR2,
+				ip_line2 VARCHAR2,
+				ip_city VARCHAR2,
+				ip_state_code VARCHAR2,
+				ip_zip VARCHAR2)
+  RETURN SELF AS RESULT
+  IS
+  BEGIN
+    SELF.line1 :=ip_line1;
+    SELF.line2 :=ip_line2;
+    SELF.city :=ip_city;
+    SELF.state_code :=ip_state_code;
+    SELF.zip :=ip_zip;
+    SELF.country :='USA';
+    RETURN;
+  END;
+END;
+/
+declare
+  v_address address2;
+begin
+  v_address :=address2('Suite 288','San Street','San Jose','CA','11011');
+  dbms_output.put_line(v_address.line1);
+  dbms_output.put_line(v_address.line2);
+  dbms_output.put_line(v_address.city||', '||v_address.state_code||
+  ' '||v_address.zip);
+  dbms_output.put_line(v_address.country);
+end;
+/
+
+-- Object tables
+CREATE TABLE address_master OF address;
+INSERT INTO address_master
+VALUES (address('19 J','Reading Rd','Edison','NJ','08817'));
+select *from address_master;
+
+-- Object Relational tables
+CREATE TABLE employee
+(empid number(10)PRIMARY KEY,
+ lastname varchar2(30)NOT NULL,
+ firstname varchar2(30)NOT NULL,
+ middle_initial varchar2(2),
+ emp_address address);
+
+INSERT INTO employee VALUES
+(101,'LAKSHMAN','BULUSU',null,
+address('50 UNION SQUARE','SUITE 101','NEW YORK','NY','10020'));
+
+-- Object References
+DROP TABLE employee;
+CREATE TABLE employee
+(empid number(10)PRIMARY KEY,
+ lastname varchar2(30)NOT NULL,
+ firstname varchar2(30)NOT NULL,
+ middle_initial varchar2(2),
+ emp_address REF address);
+
+
+-- DML on Objects
+-- SELECT
+DECLARE
+  v_address address;
+BEGIN
+  SELECT emp_address
+  INTO v_address
+  FROM employee
+  WHERE lastname ='LAKSHMAN';
+  DBMS_OUTPUT.PUT_LINE('The address of the employee LAKSHMAN is');
+  DBMS_OUTPUT.PUT_LINE(v_address.line1||' '||v_address.line2);
+  DBMS_OUTPUT.PUT_LINE(v_address.city||', '||v_address.state_code||' '||
+  v_address.zip);
+END;
+/
+SELECT * FROM employee e WHERE e.emp_address.city ='Edison';
+SELECT e.emp_address.get_address()
+FROM employee e;
+
+-- VALUE operator
+DECLARE
+  v_address address;
+BEGIN
+  SELECT VALUE(a)
+  INTO v_address
+  FROM address_master a
+  WHERE a.city ='EDISON';
+END;
+/
+
+-- REF operator
+DECLARE
+  v_address_ref REF address;
+BEGIN
+  SELECT REF(a)
+  INTO v_address_ref
+  FROM address_master a
+  WHERE a.city ='EDISON';
+END;
+/
+DECLARE
+  v_address_ref REF address;
+  v_zip VARCHAR2(30);
+BEGIN
+  SELECT REF(a), a.zip
+  INTO v_address_ref,v_zip
+  FROM address_master a
+  WHERE a.city ='EDISON';
+END;
+/
+
+-- DEREF operator
+DECLARE
+  v_address_ref REF address;
+  v_address address;
+BEGIN
+  SELECT DEREF(v_address_ref)
+  INTO v_address
+  FROM DUAL;
+END;
+/
+DECLARE
+  v_address address;
+BEGIN
+  SELECT DEREF(e.emp_address)
+  INTO v_address
+  FROM employee e
+  WHERE e.lastname ='LAKSHMAN';
+  DBMS_OUTPUT.PUT_LINE('The address of the employee LAKSHMAN is');
+  DBMS_OUTPUT.PUT_LINE(v_address.line1||' '||v_address.line2);
+  DBMS_OUTPUT.PUT_LINE(v_address.city||', '||v_address.state_code||' '||
+  v_address.zip);
+END;
+/
+UPDATE employee SET emp_address =NULL WHERE emp_address IS DANGLING;
+
+-- INSERT
+DECLARE
+  v_address_ref REF address;
+BEGIN
+  INSERT INTO address_master a
+  VALUES (address('57-1 Fairlawn Street','#101C','Flushing','NY','10110'))
+  RETURNING REF(a)INTO v_address_ref;
+END;
+/
+
+-- UPDATE
+UPDATE address_master a SET a.zip ='08820-3307 'WHERE a.zip ='08820';
+
+DECLARE
+  v_address address;
+  v_address_ref REF address;
+BEGIN
+  INSERT INTO address_master a
+  VALUES (address('10 Metroplex Complex','Suite 202','Boston','MA','01701'))
+  RETURNING REF(a)INTO v_address_ref;
+  UPDATE employee
+  SET emp_address =v_address_ref
+  WHERE empid =101;
+END;
+/
+-- DELETE
+BEGIN
+  DELETE FROM address_master a
+  WHERE (a.line1 IS NULL)AND (a.line2 IS NULL);
+END;
+/
+
+-- Using %TYPE and %ROWTYPE on Row Objects
+DECLARE
+  v_line1 address_master.line1%TYPE;
+BEGIN
+  SELECT line1
+  INTO v_line1
+  FROM address_master
+  WHERE city ='EDISON';
+  DBMS_OUTPUT.PUT_LINE(v_line1);
+END;
+/
+declare
+  cursor c1 is select VALUE(a)from address_master a;
+  v_add address_master%ROWTYPE;
+begin
+  open c1;
+  loop
+    fetch c1 into v_add;
+    exit when c1%notfound;
+    dbms_output.put_line(v_add.line1);
+  end loop;
+  close c1;
+end;
+/
+declare
+  cursor c1 is select * from address_master;
+  v_add address_master%ROWTYPE;
+begin
+  for i in c1 loop
+    dbms_output.put_line(i.line1);
+  end loop;
+end;
+/
+
+--Objects and Native Dynamic SQL
+--Dynamic DDL involving objects
+Create or replace Procedure create_dyn_obj_table
+				(i_region_name VARCHAR2,
+				 retcd OUT NUMBER,
+				 errmsg OUT VARCHAR2)
+authid current_user
+Is
+  Dyn_string VARCHAR2(1000);
+  Dyn_Table_name VARCHAR2(30);
+Begin
+  Dyn_table_name :='ADDRESS_MASTER_FOR_'||replace(trim(i_region_name),' ','_');
+  Dyn_string :='CREATE TABLE '||dyn_table_name||'OF address ';
+  EXECUTE IMMEDIATE dyn_string ;
+  retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR:Creating table '||dyn_table_name ||'-'||SQLERRM;
+End;
+/
+Create or replace Procedure create_dyn_obj_for_all
+				(retcd OUT NUMBER,errmsg OUT VARCHAR2)
+Authid current_user
+Is
+  CURSOR csr_region IS
+    SELECT region_name
+    FROM region_tab;
+BEGIN
+  FOR idx IN csr_region LOOP
+    create_dyn_obj_table(idx.region_name,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+DECLARE
+  Retcd NUMBER;
+  Errmsg VARCHAR2(32767);
+BEGIN
+  Create_dyn_obj_for_all(retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20190,errmsg);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20191,SQLERRM);
+END;
+/
+column object_name format a30;
+select object_name,object_type from user_objects
+where object_name like 'ADDRESS%FOR%';
+
+-- Dynamic INSERT involving objects
+Create or replace Procedure insert_dyn_obj_table
+				(i_region_name VARCHAR2,i_line1 VARCHAR2,
+				 i_line2 VARCHAR2,i_city VARCHAR2,
+				 i_state_code VARCHAR2,i_zip VARCHAR2,
+				 retcd OUT NUMBER,errmsg OUT VARCHAR2)
+authid current_user
+Is
+  Dyn_ins_string VARCHAR2(1000);
+  Dyn_Table_name VARCHAR2(30);
+Begin
+  Dyn_table_name :='ADDRESS_MASTER_FOR_'||replace(trim(i_region_name),' ','_');
+  Dyn_ins_string :=
+    'INSERT INTO '||dyn_table_name||' VALUES (address(:1,:2,:3,:4,:5))';
+  EXECUTE IMMEDIATE dyn_ins_string
+  USING i_line1,i_line2,i_city,i_state_code,i_zip;
+  retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR: '||SQLERRM;
+End;
+/
+DECLARE
+  Retcd NUMBER;
+  Errmsg VARCHAR2(32767);
+BEGIN
+  insert_dyn_obj_table('REGION1','20 James St.',null,'Edison','NJ','08825',
+  retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20193,errmsg);
+  END IF;
+  insert_dyn_obj_table('REGION1','11 Woodstock Ave.','#2D','Blue Bells','VA',
+  '17864',retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20194,errmsg);
+  END IF;
+  insert_dyn_obj_table('REGION2','15 Highs Blvd','Suite 201','Sunnyvale','CA',
+  '12456',retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20195,errmsg);
+  END IF;
+  insert_dyn_obj_table('REGION4','1 Woodfield Ct.',null,'Dallas','TX',
+  '94567',retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20196,errmsg);
+  END IF;
+  COMMIT;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20197,SQLERRM);
+END;
+/
+
+-- Dynamic multi-row querying involving objects
+Create or replace Procedure display_dyn_obj_for_region
+				(i_region_name VARCHAR2,
+				 retcd OUT NUMBER,
+				 errmsg OUT VARCHAR2)
+Is
+  Dyn_table_name VARCHAR2(100);
+  Dyn_query_string VARCHAR2(1000);
+  Type csr_dyn IS REF CURSOR;
+  csr_dyn1 csr_dyn;
+  v_address address;
+BEGIN
+  Dyn_table_name :='ADDRESS_MASTER_FOR_'||replace(trim(i_region_name),' ','_');
+  Dyn_query_string :='SELECT VALUE(a) FROM '||dyn_table_name||'a ';
+  DBMS_OUTPUT.PUT_LINE('The addresses for region: '||i_region_name||' are :-');
+  DBMS_OUTPUT.NEW_LINE;
+  OPEN csr_dyn1 FOR dyn_query_string;
+  LOOP
+    FETCH csr_dyn1 INTO v_address;
+    EXIT WHEN csr_dyn1%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE(v_address.line1||' '||v_address.line2||' '||
+    v_address.city||', '||v_address.state_code||' '||v_address.zip);
+  END LOOP;
+  CLOSE csr_dyn1;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+Create or replace Procedure display_dyn_obj_global
+				(retcd OUT NUMBER,
+				 errmsg OUT VARCHAR2)
+Is
+  CURSOR csr_region IS
+    SELECT region_name FROM region_tab;
+BEGIN
+  FOR idx IN csr_region LOOP
+    display_dyn_obj_for_region(idx.region_name,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+DECLARE
+  Retcd NUMBER;
+  Errmsg VARCHAR2(32767);
+BEGIN
+  display_dyn_obj_global(retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20190,errmsg);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20191,SQLERRM);
+END;
+/
+
+-- Constructing a type hierarchy in PL/SQL
+CREATE OR REPLACE TYPE book_type AS OBJECT
+(title VARCHAR2(50),
+ author VARCHAR2(30),
+ ISBN NUMBER,
+ publisher VARCHAR2(50),
+ prize_awarded VARCHAR2(1),
+ NOT INSTANTIABLE MEMBER PROCEDURE display_info
+)
+NOT INSTANTIABLE
+NOT FINAL;
+/
+CREATE OR REPLACE TYPE literature_type UNDER book_type
+(category VARCHAR2(20),
+ award_name VARCHAR2(20),
+ OVERRIDING MEMBER PROCEDURE display_info
+)
+INSTANTIABLE
+NOT FINAL;
+/
+CREATE OR REPLACE TYPE fiction_type UNDER literature_type
+(based_upon VARCHAR2(20),
+ OVERRIDING MEMBER PROCEDURE display_info
+)
+INSTANTIABLE
+NOT FINAL;
+/
+CREATE OR REPLACE TYPE novel_type UNDER fiction_type
+(can_be_filmed VARCHAR2(1),
+ OVERRIDING MEMBER PROCEDURE display_info
+)
+INSTANTIABLE
+NOT FINAL;
+/
+CREATE OR REPLACE TYPE mystery_type UNDER novel_type
+(type_of_mystery VARCHAR2(20),
+ OVERRIDING MEMBER PROCEDURE display_info
+)
+INSTANTIABLE
+FINAL;
+/
+CREATE OR REPLACE TYPE BODY literature_type
+IS
+  OVERRIDING MEMBER PROCEDURE display_info
+  IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE(rpad('Category',20)||' '||rpad('Books',60));
+    DBMS_OUTPUT.PUT_LINE(rpad('-',20,'-')||' '||rpad('-',60,'-'));
+    DBMS_OUTPUT.PUT_LINE(rpad(SELF.category,20)||' '||SELF.title||' by '||
+    SELF.author);
+  END;
+END;
+/
+CREATE OR REPLACE TYPE BODY fiction_type
+IS
+  OVERRIDING MEMBER PROCEDURE display_info
+  IS
+  BEGIN
+    DBMS_OUTPUT.PUT_LINE(rpad('Category',20)||' '||rpad('Books',60));
+    DBMS_OUTPUT.PUT_LINE(rpad('-',20,'-')||' '||rpad('-',60,'-'));
+    DBMS_OUTPUT.PUT_LINE(rpad(SELF.category,20)||' '||SELF.title||' by '||
+    SELF.author);
+    DBMS_OUTPUT.PUT_LINE('This title is based upon '||SELF.based_upon);
+  END;
+END;
+/
+CREATE OR REPLACE TYPE BODY novel_type
+IS
+  OVERRIDING MEMBER PROCEDURE display_info
+  IS
+    v_can_be_filmed VARCHAR2(20);
+  BEGIN
+    SELECT decode(SELF.can_be_filmed,'Y','can be filmed',
+           'N ','cannot be filmed')
+    INTO v_can_be_filmed
+    FROM dual;
+    DBMS_OUTPUT.PUT_LINE(rpad('Category',20)||' '||rpad('Books',60));
+    DBMS_OUTPUT.PUT_LINE(rpad('-',20,'-')||' '||rpad('-',60,'-'));
+    DBMS_OUTPUT.PUT_LINE(rpad(SELF.category,20)||' '||SELF.title||' by '||
+    SELF.author);
+    DBMS_OUTPUT.PUT_LINE('This title is a novel based upon '||SELF.based_upon||
+    ' and '||v_can_be_filmed);
+  END;
+END;
+/
+CREATE OR REPLACE TYPE BODY mystery_type
+IS
+  OVERRIDING MEMBER PROCEDURE display_info
+  IS
+    v_can_be_filmed VARCHAR2(20);
+  BEGIN
+    SELECT decode(SELF.can_be_filmed,'Y','can be filmed',
+           'N','cannot be filmed')
+    INTO v_can_be_filmed
+    FROM dual;
+    DBMS_OUTPUT.PUT_LINE(rpad('Category',20)||' '||rpad('Books',60));
+    DBMS_OUTPUT.PUT_LINE(rpad('-',20,'-')||' '||rpad('-',60,'-'));
+    DBMS_OUTPUT.PUT_LINE(rpad(SELF.category,20)||' '||SELF.title||' by '||
+    SELF.author);
+    DBMS_OUTPUT.PUT_LINE('This title is a novel based upon '||SELF.based_upon||
+    ', '||v_can_be_filmed||
+    ' and is a mystery of '||SELF.type_of_mystery||' type');
+  END;
+END;
+/
+declare
+  lit_classic literature_type;
+begin
+  lit_classic :=literature_type('DREAMS UNLIMITED','Bulusu Lakshman',
+  0112224444,'Books International','Y',
+  'Fiction','Booker Prize');
+  lit_classic.display_info;
+end;
+/
+declare
+  classic_book mystery_type;
+begin
+  classic_book :=mystery_type('DREAMS UNLIMITED','Bulusu Lakshman',
+  0112224444,'Books International','Y',
+  'Fiction','Booker Prize','Scientific',
+  'Y','Medical Related');
+  classic_book.display_info;
+end;
+/
+
+-- Dynamic Method Dispatch
+declare
+  lit_classic literature_type;
+  classic_book mystery_type;
+begin
+  lit_classic :=literature_type('DREAMS UNLIMITED','Bulusu Lakshman',
+  0112224444,'Books International','Y',
+  'Fiction','Booker Prize');
+  lit_classic.display_info;
+  classic_book :=mystery_type('DREAMS UNLIMITED','Bulusu Lakshman',
+  0112224444,'Books International','Y','Fiction',
+  'Booker Prize','Scientific','Y','Medical Related');
+  classic_book.display_info;
+end;
+/
+
+-- SQL Types of Language Java or SQLJ Object Types
+-- Custom Java Class that the SQLJ Object Type maps to
+import java.sql.*;
+import oracle.sql.*;
+public class Address implements SQLData {
+  public String line1;
+  public String line2;
+  public String city;
+  public String state_code;
+  public String zip;
+  String sql_type ="ADDRESS_SQLJ";
+  
+  public Address(){
+  }
+
+  public Address (String iline1,String iline2,String icity,
+                  String istate,String izip){
+    this.line1 =iline1;
+    this.line2 =iline2;
+    this.city =icity;
+    this.state_code =istate;
+    this.zip =izip;
+  }
+
+  public String getSQLTypeName()throws SQLException
+  {
+    return sql_type;
+  }
+
+  public void readSQL(SQLInput stream,String typeName)
+  throws SQLException
+  {
+    sql_type =typeName;
+    line1 =stream.readString();
+    line2 =stream.readString();
+    city =stream.readString();
+    state_code =stream.readString();
+    zip =stream.readString();
+  }
+
+  public void writeSQL(SQLOutput stream)
+  throws SQLException
+  {
+    stream.writeString(line1);
+    stream.writeString(line2);
+    stream.writeString(city);
+    stream.writeString(state_code);
+    stream.writeString(zip);
+  }
+
+  public static Address setAddress (String iline1,String iline2,
+    String icity,String istate,String zip){
+    return new Address(iline1,iline2,icity,istate,izip);
+  }
+
+  public String getAddress(){
+    return this.line1 +" "+this.line2 +" "+this.city +", "+
+    this.state_code +" "+this.zip;  
+  }
+}
+
+-- Creating the SQLJ object type that maps to the above Java class
+CREATE TYPE address_sqlj AS OBJECT
+EXTERNAL NAME 'Address 'LANGUAGE JAVA
+USING SQLData(
+line1_sqlj varchar2(20)EXTERNAL NAME 'line1',
+line2_sqlj varchar2(20)EXTERNAL NAME 'line2',
+city_sqlj varchar2(20)EXTERNAL NAME 'city',
+state_code_sqlj varchar2(2)EXTERNAL NAME 'state_code',
+zip_sqlj varchar2(13)EXTERNAL NAME 'zip',
+STATIC FUNCTION set_address (p_line1 VARCHAR2,p_line2 VARCHAR2,
+p_city VARCHAR2,p_state_code VARCHAR2,p_zip VARCHAR2)
+RETURN address_sqlj
+EXTERNAL NAME 'setAddress (java.lang.String,java.lang.String,
+java.lang.String,java.lang.String,java.lang.String) return Address',
+MEMBER FUNCTION get_address RETURN VARCHAR2
+EXTERNAL NAME 'Address.getAddress()return java.lang.String'
+)
+NOT FINAL;
+/
+
+-- Using the SQLJ Object Type in PL/SQL and/or SQL
+CREATE TABLE address_master_sqlj OF address_sqlj;
+
+insert into address_master_sqlj
+values(address_sqlj.set_address('1 Oracle parkway',null,'Redwood Shores',
+'CA','41246'));
+
+SELECT a.line1_sqlj,a.line2_sqlj FROM address_master_sqlj a;
+
+SELECT a.get_address()FROM address_master_sqlj;
+
+--User-defined Operators
+CREATE OR REPLACE FUNCTION f_eq (p1 VARCHAR2,p2 VARCHAR2) RETURN NUMBER
+IS
+BEGIN
+  IF p1 =p2 THEN
+    RETURN 1;
+  ELSE
+    RETURN 0;
+  END IF;
+END f_eq;
+/
+CREATE OR REPLACE OPERATOR eq
+BINDING (VARCHAR2,VARCHAR2)RETURN NUMBER
+USING f_eq;
+
+CREATE OR REPLACE FUNCTION f_eq1 (p1 VARCHAR2,p2 VARCHAR2)
+RETURN BOOLEAN
+IS
+BEGIN
+  IF p1 =p2 THEN
+    RETURN TRUE;
+  ELSE
+    RETURN FALSE;
+  END IF;
+END f_eq1;
+/
+CREATE OR REPLACE OPERATOR eq1
+BINDING (VARCHAR2,VARCHAR2)RETURN BOOLEAN
+USING f_eq1;
+
+SELECT * FROM employee_test
+WHERE EQ(lastname,'SMITH')=1;
+
+create table test (test number);
+
+insert into test values (eq('ROBERT','SMITH'));
+
+select * from test;
+
+declare
+  v_empid number;
+  v_lastname varchar2(30);
+  v_firstname varchar2(30);
+begin
+  select empid,lastname,firstname
+  into v_empid,v_lastname,v_firstname
+  from employee_test
+  where EQ(lastname,'SMITH')=1;
+  dbms_output.put_line(to_char(v_empid)||' '||v_lastname||' '||v_firstname);
+end;
+/
+declare
+  string1 varchar2(10):='ROBERT';
+  string2 varchar2(10):='SMITH';
+begin
+  if eq(string1,string2)=1 then
+    dbms_output.put_line('String1 equals String2');
+  else
+    dbms_output.put_line('String1 does not equal String2');
+  end if;
+end;
+/

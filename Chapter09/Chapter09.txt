@@ -1,0 +1,320 @@
+-- Bulk DML
+DECLARE
+  Type region_rec IS Record
+  (region_id NUMBER(4),
+   region_name VARCHAR2(10));
+  Type region_tbl IS TABLE of region_rec
+    INDEX BY BINARY_INTEGER;
+  Region_recs region_tbl;
+  Ret_code NUMBER;
+  Ret_errmsg VARCHAR2(1000);
+  Procedure load_regions
+  	    (region_recs IN region_tbl,
+	     retcd OUT NUMBER,
+	     errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    --Clean up region_tab table initially
+    DELETE FROM region_tab;
+    FOR i in region_recs.FIRST..region_recs.LAST LOOP
+      INSERT INTO region_tab
+      values (region_recs(i).region_id,region_recs(i).region_name);
+    END LOOP;
+    COMMIT;
+  EXCEPTION WHEN OTHERS THEN
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  FOR i IN 1..5 LOOP
+    Region_recs(i).region_id :=i;
+    Region_recs(i).region_name :='REGION'||i;
+  END LOOP;
+  Load_regions(region_recs,ret_code,ret_errmsg);
+EXCEPTION WHEN OTHERS THEN 
+  RAISE_APPLICATION_ERROR(-20111,SQLERRM);
+END;
+/
+
+-- The same INSERT operation using Bulk Bind
+DECLARE
+  Type region_id_tbl IS TABLE of NUMBER INDEX BY BINARY_INTEGER;
+  Type region_name_tbl IS TABLE of VARCHAR2(20)INDEX BY BINARY_INTEGER;
+  region_ids region_id_tbl;
+  region_names region_name_tbl;
+  ret_code NUMBER;
+  ret_errmsg VARCHAR2(1000);
+  Procedure load_regions_bulk_bind
+  	    (region_ids IN region_id_tbl,
+	     region_names IN region_name_tbl,
+	     retcd OUT NUMBER,
+	     errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    --clean up the region_tab table initially.
+    DELETE FROM region_tab;
+    FORALL i IN region_ids.FIRST..region_ids.LAST
+      INSERT INTO region_tab values (region_ids(i),region_names(i));
+    Retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    COMMIT;
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  FOR i IN 1..5 LOOP
+    Region_ids(i):=i;
+    Region_names(i):='REGION'||i;
+  END LOOP;
+  Load_regions_bulk_bind(region_ids,region_names,ret_code,ret_errmsg);
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20112,SQLERRM);
+END;
+/
+
+-- An example showing performance benefit of FORALL
+DECLARE
+  Type region_id_tbl IS TABLE of NUMBER INDEX BY BINARY_INTEGER;
+  Type region_name_tbl IS TABLE of VARCHAR2(20)INDEX BY BINARY_INTEGER;
+  region_ids region_id_tbl;
+  region_names region_name_tbl;
+  Ret_code NUMBER;
+  Ret_errmsg VARCHAR2(1000);
+  time1 number;
+  time2 number;
+  time3 number;
+  Procedure load_regions
+            (region_ids IN region_id_tbl,
+             region_names IN region_name_tbl,
+             retcd OUT NUMBER,
+             errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    FOR i in 1..10000 LOOP
+      INSERT INTO region_tab_temp
+      values (region_ids(i),region_names(i));
+    END LOOP;
+    COMMIT;
+  EXCEPTION WHEN OTHERS THEN
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+  Procedure load_regions_bulk_bind
+            (region_ids IN region_id_tbl,
+             region_names IN region_name_tbl,
+             retcd OUT NUMBER,
+             errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    FORALL i IN 1..10000
+      INSERT INTO region_tab_temp values (region_ids(i),region_names(i));
+    Retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    COMMIT;
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  DELETE region_tab_temp;
+  FOR i IN 1..10000 LOOP
+    Region_ids(i):=i;
+    Region_names(i):='REGION'||i;
+  END LOOP;
+  time1 :=dbms_utility.get_time;
+  Load_regions(region_ids,region_names,ret_code,ret_errmsg);
+  time2 :=dbms_utility.get_time;
+  Load_regions_bulk_bind(region_ids,region_names,ret_code,ret_errmsg);
+  time3 :=dbms_utility.get_time;
+  dbms_output.put_line('Time without bulk bind is '||to_char(time2-time1)||
+  ' secs');
+  dbms_output.put_line('Time with bulk bind is '||to_char(time3-time2)||'secs');
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20111,SQLERRM);
+END;
+/
+
+-- A complete example of FORALL with SAVE EXCEPTIONS clause
+DECLARE
+  Type region_id_tbl IS TABLE of NUMBER INDEX BY BINARY_INTEGER;
+  Type region_name_tbl IS TABLE of VARCHAR2(20)INDEX BY BINARY_INTEGER;
+  region_ids region_id_tbl;
+  region_names region_name_tbl;
+  ret_code NUMBER;
+  ret_errmsg VARCHAR2(1000);
+  Procedure load_regions_bulk_bind
+            (region_ids IN region_id_tbl,
+             region_names IN region_name_tbl,
+             retcd OUT NUMBER,
+             errmsg OUT VARCHAR2)
+  Is
+    bulk_bind_excep EXCEPTION;
+    PRAGMA EXCEPTION_INIT(bulk_bind_excep,-24381);
+  BEGIN
+    --clean up the region_tab table initially.
+    DELETE FROM region_tab;
+    FORALL i IN region_ids.FIRST..region_ids.LAST SAVE EXCEPTIONS
+      INSERT INTO region_tab values (region_ids(i),region_names(i));
+    Retcd :=0; 
+  EXCEPTION WHEN bulk_bind_excep THEN
+    FOR i in 1..SQL%BULK_EXCEPTIONS.COUNT LOOP
+      DBMS_OUTPUT.PUT_LINE('Iteration '||
+      SQL%BULK_EXCEPTIONS(i).error_index||'failed with error '||
+      SQLERRM(-SQL%BULK_EXCEPTIONS(i).error_code));
+    END LOOP;
+    COMMIT;
+    Retcd :=SQLCODE;
+    Errmsg :='Bulk DML error(s)';
+  WHEN OTHERS THEN
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  FOR i IN 1..5 LOOP
+    Region_ids(i):=i;
+    Region_names(i):='REGION'||i;
+  END LOOP;
+  Region_names(3):='REGION WITH NAME3';
+  Load_regions_bulk_bind(region_ids,region_names,ret_code,ret_errmsg);
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20112,SQLERRM);
+END;
+/
+
+-- The above example rewritten using SQL%BULK_ROWCOUNT and SQL%ROWCOUNT
+DECLARE
+  Type region_id_tbl IS TABLE of NUMBER INDEX BY BINARY_INTEGER;
+  Type region_name_tbl IS TABLE of VARCHAR2(20)INDEX BY BINARY_INTEGER;
+  region_ids region_id_tbl;
+  region_names region_name_tbl;
+  ret_code NUMBER;
+  ret_errmsg VARCHAR2(1000);
+  Procedure load_regions_bulk_bind
+	    (region_ids IN region_id_tbl,
+	     region_names IN region_name_tbl,
+	     retcd OUT NUMBER,
+	     errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    FORALL i IN region_ids.FIRST..region_ids.LAST
+      INSERT INTO region_tab values (region_ids(i),region_names(i));
+    FOR i in 1..region_ids.COUNT LOOP
+      IF SQL%BULK_ROWCOUNT(i)>0 THEN
+        --<track this particular execution>
+        dbms_output.put_line(to_char(sql%bulk_rowcount(i)));
+        NULL;
+      END IF;
+    END LOOP;
+    IF SQL%ROWCOUNT =0 THEN
+      DBMS_OUTPUT.PUT_LINE('No Rows inserted overall');
+    ELSE
+      COMMIT;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    COMMIT;
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  region_ids(1):=6;
+  region_names(1):='region6';
+  load_regions_bulk_bind(region_ids,region_names,ret_code,ret_errmsg);
+END;
+/
+
+-- Bulk Query
+-- Procedure update_dyn_global_bulk
+Create or Replace Procedure update_dyn_global_bulk
+			    (retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+authid current_user
+Is
+  TYPE NameTbl IS TABLE OF region_tab.region_name%TYPE;
+  Region_names NameTbl;
+BEGIN
+  SELECT region_name BULK COLLECT INTO region_names
+  FROM region_tab ORDER BY region_name;
+  FOR i IN region_names.FIRST..region_names.LAST LOOP
+    update_dyn_for_all_orders(region_names(i),retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+
+-- Using BULK COLLECT in Fetching
+-- Procedure update_dyn_global_bulk2
+Create or Replace Procedure update_dyn_global_bulk2
+			    (retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+authid current_user
+Is
+  TYPE NameTbl IS TABLE OF region_tab.region_name%TYPE;
+  Region_names NameTbl;
+  CURSOR csr_region_names IS
+    SELECT region_name FROM region_tab ORDER BY region_name;
+BEGIN
+  OPEN csr_region_names;
+  FETCH csr_region_names BULK COLLECT INTO region_names;
+  FOR i IN region_names.FIRST..region_names.LAST LOOP
+    update_dyn_for_all_orders(region_names(i),retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+  CLOSE csr_region_names;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+
+-- Using BULK COLLECT in RETURNING INTO
+DECLARE
+  Type region_id_tbl IS TABLE of NUMBER INDEX BY BINARY_INTEGER;
+  Type region_name_tbl IS TABLE of VARCHAR2(20)INDEX BY BINARY_INTEGER;
+  region_ids region_id_tbl;
+  region_names region_name_tbl;
+  out_region_names region_name_tbl;
+  ret_code NUMBER;
+  ret_errmsg VARCHAR2(1000);
+  Procedure load_regions_bulk_bind
+            (region_ids IN region_id_tbl,
+             region_names IN region_name_tbl,
+	     retcd OUT NUMBER,
+	     errmsg OUT VARCHAR2)
+  Is
+  BEGIN
+    --clean up the sec_region_tab table initially.
+    DELETE FROM sec_region_tab;
+    FORALL i IN region_ids.FIRST..region_ids.LAST
+      INSERT INTO sec_region_tab values (region_ids(i),region_names(i));
+    Retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    Retcd :=SQLCODE;
+    Errmsg :=SQLERRM;
+  END;
+BEGIN
+  FOR i IN 1..5 LOOP
+    Region_ids(i):=i;
+    Region_names(i):='REGION'||i;
+  END LOOP;
+  Load_regions_bulk_bind(region_ids,region_names,ret_code,ret_errmsg);
+  IF (ret_code <>0) THEN
+    RAISE_APPLICATION_ERROR(-20111,SQLERRM);
+  END IF;
+  FORALL i IN 1..5
+    UPDATE sec_region_tab
+    SET region_name ='NEW '||region_name
+    WHERE region_id =region_ids(i)
+    RETURNING region_name BULK COLLECT INTO out_region_names;
+  FOR i in out_region_names.FIRST..out_region_names.LAST LOOP
+    DBMS_OUTPUT.PUT_LINE(out_region_names(i));
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20112,SQLERRM);
+END;
+/

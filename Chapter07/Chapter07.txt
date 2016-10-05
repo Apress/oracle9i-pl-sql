@@ -1,0 +1,233 @@
+-- An example of code using native dynamic SQL
+/*Native Dynamic SQL */
+DECLARE
+  dyn_tab_name VARCHAR2(30):='temp';
+  dyn_string VARCHAR2(150);
+BEGIN
+  dyn_string :='create table '||dyn_tab_name||'(col1 NUMBER NOT NULL)';
+  EXECUTE IMMEDIATE dyn_string;
+END;
+/
+
+-- An example of the same using DBMS_SQL
+drop table temp;
+--DBMS_SQL
+DECLARE
+  dyn_tab_name VARCHAR2(30):='temp';
+  dyn_string VARCHAR2(150);
+  c INTEGER;
+  ret_code INTEGER;
+BEGIN
+  dyn_string :='create table '||dyn_tab_name||
+  '(col1 NUMBER NOT NULL)';
+  c :=DBMS_SQL.OPEN_CURSOR;
+  DBMS_SQL.PARSE(c,dyn_string,DBMS_SQL.V7);
+  ret_code :=DBMS_SQL.EXECUTE(c);
+  DBMS_SQL.CLOSE_CURSOR(c);
+END;
+/
+-- Dynamic DDL
+-- Procedure create_dyn_table
+Create or replace Procedure create_dyn_table
+			    (i_region_name VARCHAR2,
+			     retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+authid current_user
+Is
+  Dyn_string VARCHAR2(1000);
+  Dyn_Table_name VARCHAR2(30);
+Begin
+  Dyn_table_name :='ORDERS_FOR_'||replace(trim(i_region_name),'','_');
+  Dyn_string :='CREATE TABLE '||dyn_table_name||
+  '(order_id NUMBER(10)PRIMARY KEY,
+    order_date DATE NOT NULL,
+    total_qty NUMBER,
+    total_price NUMBER(15,2),
+    supp_id NUMBER(6)REFERENCES supplier_tab(supp_id))';
+  EXECUTE IMMEDIATE dyn_string ;
+  retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR:Creating table '||dyn_table_name ||'-'||SQLERRM;
+End;
+/
+
+-- Procedure create_dyn_table2
+Create or replace Procedure create_dyn_table2
+			    (i_region_name VARCHAR2,
+			     retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+authid current_user
+Is
+  Dyn_string VARCHAR2(1000);
+  Dyn_Table_name VARCHAR2(30);
+Begin
+  Dyn_table_name :='ORDER_ITEMS_FOR_'||replace(trim(i_region_name),'','_');
+  Dyn_string :='CREATE TABLE '||dyn_table_name||
+  '(order_id NUMBER(10)NOT NULL,
+    item_id VARCHAR2(10)NOT NULL,
+    unit_price NUMBER(11,2)NOT NULL,
+    quantity NUMBER)';
+  EXECUTE IMMEDIATE dyn_string ;
+  dyn_string :=
+    'alter table ORDER_ITEMS_FOR_'||i_region_name||'add constraint '||
+    'fk_oifor '||i_region_name||'foreign key (order_id)references '||
+    'orders_for_'||i_region_name||'(order_id)';
+  EXECUTE IMMEDIATE dyn_string ;
+  retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR:Creating/Altering table '||dyn_table_name ||'-'||SQLERRM;
+End;
+/
+
+-- Procedure create_dyn_for_all
+Create or replace Procedure create_dyn_for_all
+			    (retcd OUT NUMBER,errmsg OUT VARCHAR2)
+Authid current_user
+Is
+  CURSOR csr_region IS
+    SELECT region_name
+    FROM region_tab;
+BEGIN
+  FOR idx IN csr_region LOOP
+    create_dyn_table(idx.region_name,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+    create_dyn_table2(idx.region_name,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+
+-- Executing create_dyn_for_all
+DECLARE
+  Retcd NUMBER;
+  Errmsg VARCHAR2(32767);
+BEGIN
+  Create_dyn_for_all(retcd,errmsg);
+  IF (retcd <>0) THEN
+    RAISE_APPLICATION_ERROR(-20102,errmsg);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20103,SQLERRM);
+END;
+/
+select object_name,object_type from user_objects
+where object_name like 'ORDER%FOR%';
+
+-- Dynamic SELECTS
+-- Single-row SELECTS
+-- Procedure update_dyn_table
+Create or replace Procedure update_dyn_table
+			    (i_region_name VARCHAR2,
+			     i_order_id NUMBER,
+			     retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+authid current_user
+Is
+  Dyn_upd_string1 VARCHAR2(1000);
+  Dyn_query_string VARCHAR2(1000);
+  Dyn_Table_name1 VARCHAR2(30);
+  Dyn_Table_name2 VARCHAR2(30);
+  V_total_price NUMBER;
+  V_total_quantity NUMBER;
+Begin
+  Dyn_table_name1 :='ORDER_ITEMS_FOR_'||replace(trim(i_region_name),'','_');
+  Dyn_table_name2 :='ORDERS_FOR_'||i_region_name;
+  Dyn_query_string :='SELECT SUM(quantity),SUM(unit_price*quantity)FROM '||
+  dyn_table_name1||
+  'WHERE order_id =:input_order_id';
+  Dyn_upd_string1 :=' UPDATE '||dyn_table_name2||
+  'SET total_qty =:total_qty,total_price =:total_price WHERE '||
+  'order_id =:input_order_id';
+  EXECUTE IMMEDIATE dyn_query_string INTO v_total_price,v_total_quantity
+  USING i_order_id;
+  EXECUTE IMMEDIATE dyn_upd_string1
+  USING v_total_quantity,v_total_price,i_order_id;
+  retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR: '||SQLERRM;
+End;
+/
+
+-- Multi-row SELECTS
+-- Procedure update_dyn_for_all_orders
+Create or replace Procedure update_dyn_for_all_orders
+			    (i_region_name VARCHAR2,
+			     retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+Is
+  Dyn_table_name VARCHAR2(100);
+  Dyn_query_string VARCHAR2(1000);
+  Type csr_dyn IS REF CURSOR;
+  csr_dyn1 csr_dyn;
+  v_order_id NUMBER;
+BEGIN
+  Dyn_table_name :='ORDER_ITEMS_FOR_'||replace(trim(i_region_name),'','_');
+  Dyn_query_string :='SELECT order_id FROM '||dyn_table_name;
+  OPEN csr_dyn1 FOR dyn_query_string;
+  LOOP
+    FETCH csr_dyn1 INTO v_order_id;
+    EXIT WHEN csr_dyn1%NOTFOUND;
+    update_dyn_table(i_region_name,v_order_id,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+
+-- Procedure update_dyn_global
+Create or replace Procedure update_dyn_global
+			    (retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+Is
+  CURSOR csr_region IS
+    SELECT region_name FROM region_tab;
+BEGIN
+  FOR idx IN csr_region LOOP
+    update_dyn_for_all_orders(idx.region_name,retcd,errmsg);
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/
+
+-- Dynamic PL/SQL
+-- Procedure update_dyn_global2
+Create or replace Procedure update_dyn_global2
+			    (retcd OUT NUMBER,
+			     errmsg OUT VARCHAR2)
+Is
+  CURSOR csr_region IS
+    SELECT region_name FROM region_tab;
+  Dyn_proc_name VARCHAR2(100);
+  Dyn_plsql_string VARCHAR2(1000);
+BEGIN
+  FOR idx IN csr_region LOOP
+    EXECUTE IMMEDIATE 'BEGIN update_dyn_'||replace(trim(idx.region_name),'','_')||'(:1,:2);END;'
+    USING OUT retcd,OUT errmsg;
+    IF retcd <>0 THEN
+      EXIT;
+    END IF;
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  Retcd :=SQLCODE;
+  Errmsg :=SQLERRM;
+END;
+/

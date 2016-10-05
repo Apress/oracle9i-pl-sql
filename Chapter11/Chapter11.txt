@@ -1,0 +1,641 @@
+-- Defining a VARRAY
+DECLARE
+  TYPE num_varray IS VARRAY(5)OF NUMBER;
+  v_numvarray num_varray;
+BEGIN
+  /*Do some processing */
+  null;
+END;
+/
+
+-- Initializing a VARRAY
+DECLARE
+  TYPE num_varray IS VARRAY(5)OF NUMBER;
+  v_numvarray num_varray :=num_varray(10,20,30,40);
+BEGIN
+  dbms_output.put_line('The first element of v_numvarray is '||
+  TO_CHAR(v_numvarray(1)));
+END;
+/
+
+-- NULL VARRAYS and NULL Elements
+declare
+  Type num_varray is VARRAY(5)OF NUMBER;
+  v_numvarray num_varray;
+begin
+  --checking for NULL after declaring and before initializing
+  if v_numvarray IS NULL then
+    dbms_output.put_line('v_numvarray is atomically null');
+  end if;
+  v_numvarray :=NULL;
+  --checking for NULL after explicitly assigning to NULL
+  if v_numvarray IS NULL then
+    dbms_output.put_line('v_numvarray is atomically null after assignment');
+  end if;
+end;
+/
+declare
+  Type num_varray is VARRAY(5)OF NUMBER;
+  v_numvarray1 num_varray;
+begin
+  if v_numvarray1 IS NULL then
+    dbms_output.put_line('v_numvarray1 is atomically null');
+  end if;
+  if v_numvarray1(1) IS NULL then
+    dbms_output.put_line('The first element of v_numvarray1 is null');
+  end if;
+end;
+/
+declare
+  Type num_varray is VARRAY(5)OF NUMBER;
+  v_numvarray2 num_varray;
+begin
+  v_numvarray2 :=num_varray(NULL);
+  --checking for NULL after initialization
+  if v_numvarray2 IS NULL then
+    dbms_output.put_line('v_numvarray2 is atomically null');
+  else
+    dbms_output.put_line('v_numvarray2 is not atomically null');
+  end if;
+  if v_numvarray2(1) IS NULL then
+    dbms_output.put_line('The first element of v_numvarray2 is null');
+  end if;
+end;
+/
+
+-- Accessing VARRAY elements
+declare
+  Type num_varray is VARRAY(5)OF NUMBER;
+  v_numvarray num_varray;
+begin
+  v_numvarray :=num_varray(10,20,30,40);
+  --Referencing individual elements
+  dbms_output.put_line('The elements in the v_numvarray are: ');
+  dbms_output.put_line(to_char(v_numvarray(1))||', '||to_char(v_numvarray(2))||
+  ', '||to_char(v_numvarray(3))||', '||
+  to_char(v_numvarray(4)));
+  
+  --assignment
+  v_numvarray(4):=60;
+  dbms_output.put_line('The elements in the v_numvarray are: ');
+  dbms_output.put_line(to_char(v_numvarray(1))||', '||to_char(v_numvarray(2))||
+  ', '||to_char(v_numvarray(3))||', '||
+  to_char(v_numvarray(4)));
+end;
+/
+
+-- Defining a Nested Table
+DECLARE
+  TYPE num_table IS TABLE OF NUMBER;
+  v_numarray num_table;
+BEGIN
+  /*Do some processing */
+  null;
+END;
+/
+
+-- Initializing a Nested Table
+DECLARE
+  TYPE num_table IS TABLE OF NUMBER;
+  v_numarray num_table :=num_table(10,20,30,40);
+BEGIN
+  dbms_output.put_line('The first element of v_numarray is '||
+  TO_CHAR(v_numarray(1)));
+END;
+/
+
+-- NULL and Empty Nested Tables and NULL elements
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_numarray num_table;
+begin
+  --checking for NULL after declaring and before initializing
+  if v_numarray IS NULL then
+    dbms_output.put_line('v_numarray is atomically null');
+  end if;
+  v_numarray :=NULL;
+  --checking for NULL after explicitly assigning to NULL
+  if v_numarray IS NULL then
+    dbms_output.put_line('v_numarray is atomically null after assignment');
+  end if;
+end;
+/
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_emptyarray num_table :=num_table();
+begin
+  if v_emptyarray IS NULL then
+    dbms_output.put_line('v_emptyarray is atomically null');
+  else
+    dbms_output.put_line('v_emptyarray is NOT atomically null');
+  end if;
+end;
+/
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_numarray1 num_table;
+begin
+  if v_numarray1 IS NULL then
+    dbms_output.put_line('v_numarray1 is atomically null');
+  end if;
+  if v_numarray1(1) IS NULL then
+    dbms_output.put_line('The first element of v_numarray1 is null');
+  end if;
+end;
+/
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_numarray2 num_table;
+begin
+  v_numarray2 :=num_table(NULL);
+  --checking for NULL after initialization
+  if v_numarray2 IS NULL then
+    dbms_output.put_line('v_numarray2 is atomically null');
+  else
+    dbms_output.put_line('v_numarray2 is not atomically null');
+  end if;
+  if v_numarray2(1) IS NULL then
+    dbms_output.put_line('The first element of v_numarray2 is null');
+  end if;
+end;
+/
+
+-- Accessing Nested Table elements
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_numarray num_table;
+begin
+  v_numarray :=num_table(10,20,30,40);
+  --Referencing individual elements
+  dbms_output.put_line('The elements in the v_numarray are: ');
+  dbms_output.put_line(to_char(v_numarray(1))||', '||to_char(v_numarray(2))||
+  ', '||to_char(v_numarray(3))||', '||
+  to_char(v_numarray(4)));
+
+  --assignment
+  v_numarray(4):=50;
+  dbms_output.put_line('The elements in the v_numarray are: ');
+  dbms_output.put_line(to_char(v_numarray(1))||', '||to_char(v_numarray(2))||
+  ', '||to_char(v_numarray(3))||', '||
+  to_char(v_numarray(4)));
+end;
+/
+declare
+  Type num_table is TABLE OF NUMBER;
+  v_numarray num_table;
+begin
+  v_numarray :=num_table(10,20,30,40);
+  --Referencing individual elements
+  dbms_output.put_line('The elements in the v_numarray are: ');
+  dbms_output.put_line(to_char(v_numarray(1))||', '||to_char(v_numarray(2))||
+  ', '||to_char(v_numarray(3))||', '||
+  to_char(v_numarray(4)));
+  dbms_output.put_line(to_char(v_numarray(5)));
+end;
+/
+
+-- Collection Methods
+-- EXISTS
+DECLARE
+  TYPE num_varray IS VARRAY(5)OF NUMBER;
+  v_numarray num_varray :=num_varray(10,20,30,40,50);
+BEGIN
+  IF v_numarray.EXISTS(4) THEN
+    DBMS_OUTPUT.PUT_LINE('The element 4 exists in the variable array.');
+  END IF;
+END;
+/
+
+-- COUNT
+DECLARE
+  TYPE num_varray IS VARRAY(10)OF NUMBER;
+  v_numarray num_varray :=num_varray(10,20,30,40,50);
+  TYPE num_table IS TABLE OF NUMBER;
+  v_numlist num_table :=num_table(101,201,301,401);
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Varray Count = '||TO_CHAR(v_numarray.COUNT));
+  DBMS_OUTPUT.PUT_LINE('Nested Table Count = '||TO_CHAR(v_numlist.COUNT));
+END;
+/
+
+-- LIMIT
+DECLARE
+  TYPE num_varray IS VARRAY(10)OF NUMBER;
+  v_numarray num_varray :=num_varray(10,20,30);
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Varray Count = '||TO_CHAR(v_numarray.COUNT));
+  DBMS_OUTPUT.PUT_LINE('Varray Limit = '||TO_CHAR(v_numarray.LIMIT));
+END;
+/
+
+-- EXTEND
+DECLARE
+  TYPE num_varray IS VARRAY(10)OF NUMBER;
+  v_numarray num_varray :=num_varray(NULL,NULL);
+  TYPE num_table IS TABLE OF NUMBER;
+  v_numlist num_table :=num_table(NULL);
+BEGIN
+  v_numarray(1):=1001;
+  v_numarray(2):=1002;
+  v_numarray.EXTEND;
+  v_numarray(3):=1003;
+  
+  v_numlist(1):=101;
+  v_numlist.EXTEND(5);
+  v_numlist(5):=105;
+END;
+/
+
+-- Collections in the database
+CREATE OR REPLACE TYPE num_varray IS VARRAY(10)OF NUMBER;
+/
+CREATE OR REPLACE TYPE num_table IS TABLE OF NUMBER;
+/
+
+-- Stored VARRAYS
+CREATE OR REPLACE TYPE add_list AS VARRAY(10)OF NUMBER(10);
+/
+CREATE TABLE direct_address_list (list_id VARCHAR2(6)PRIMARY KEY,
+				  direct_addresses add_list );
+-- DML on whole VARRAYS
+-- INSERT
+INSERT INTO direct_address_list VALUES
+('OFF101',add_list(1001,1002,1003,1004));
+
+DECLARE
+  v_add_varray add_list :=add_list(2001,2002);
+BEGIN
+  INSERT INTO direct_address_list VALUES ('OFF102',v_add_varray);
+END;
+/
+
+-- UPDATE
+DECLARE
+  v_add_varray add_list :=add_list(1011,1012,1013);
+BEGIN
+  UPDATE direct_address_list
+  SET direct_addresses =v_add_varray
+  WHERE list_id ='OFF102';
+END;
+/
+
+UPDATE direct_address_list
+SET direct_addresses =add_list(1011,1012,1013)
+WHERE list_id ='OFF102';
+
+-- DELETE
+DELETE FROM direct_address_list
+WHERE list_id ='OFF102';
+
+-- SELECT
+DECLARE
+  v_add_varray direct_address_list.direct_addresses%TYPE;
+BEGIN
+  SELECT direct_addresses
+  INTO v_add_varray
+  FROM direct_address_list
+  WHERE list_id ='OFF101';
+  DBMS_OUTPUT.PUT_LINE (
+  'The address list for OFF101 contains the following address IDs :');
+  FOR idx IN 1..v_add_varray.COUNT LOOP
+    DBMS_OUTPUT.PUT_LINE(TO_CHAR(v_add_varray(idx)));
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
+/
+
+SELECT list_id,column_value
+FROM direct_address_list,TABLE(direct_addresses);
+
+-- Stored Nested Tables
+CREATE OR REPLACE TYPE home_add_list AS TABLE OF NUMBER(10);
+/
+CREATE TABLE home_address_list (list_id VARCHAR2(6)PRIMARY KEY,
+				 home_addresses home_add_list )
+NESTED TABLE home_addresses STORE AS home_addreses_tab;
+
+-- DML on whole Nested Tables
+-- INSERT
+INSERT INTO home_address_list VALUES
+('H101',home_add_list(1001,1002,1003,1004));
+
+DECLARE
+  v_add_list home_add_list :=home_add_list(2001,2002);
+BEGIN
+  INSERT INTO home_address_list VALUES ('H102',v_add_list);
+END;
+/
+
+-- UPDATE
+DECLARE
+  v_add_list home_add_list :=home_add_list(1011,1012,1013);
+BEGIN
+  UPDATE home_address_list
+  SET home_addresses =v_add_list
+  WHERE list_id ='H102';
+END;
+/
+
+UPDATE home_address_list
+SET home_addresses=home_add_list(1011,1012,1013)
+WHERE list_id ='H102';
+
+-- DELETE
+DELETE FROM home_address_list
+WHERE list_id ='H102';
+
+-- SELECT
+DECLARE
+  v_add_list home_add_list :=home_add_list(2001,2002);
+BEGIN
+  INSERT INTO home_address_list VALUES ('H102',v_add_list);
+END;
+/
+DECLARE
+  v_add_list home_address_list.home_addresses%TYPE;
+BEGIN
+  SELECT home_addresses
+  INTO v_add_list
+  FROM home_address_list
+  WHERE list_id ='H102';
+  DBMS_OUTPUT.PUT_LINE (
+  'The home address list for H102 contains the following address IDs :');
+  FOR idx IN 1..v_add_list.COUNT LOOP
+    DBMS_OUTPUT.PUT_LINE(TO_CHAR(v_add_list(idx)));
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
+/
+
+SELECT *
+FROM TABLE(SELECT home_addresses FROM home_address_list WHERE list_id ='H101');
+
+create table num_tab (col1 number(10));
+
+declare
+  v_add_list home_add_list :=home_add_list(NULL,NULL,NULL);
+begin
+  v_add_list(1):=1001;
+  v_add_list(2):=1002;
+  v_add_list(3):=1003;
+  insert into num_tab
+    select column_value
+    from TABLE(CAST(v_add_list AS home_add_list));
+end;
+/
+
+select * from num_tab;
+
+-- Table Functions
+create or replace type num_table is table of number;
+/
+create or replace function f_table return num_table
+is
+  v_numarray num_table :=num_table();
+begin
+  FOR i in 1..10 loop
+    v_numarray.EXTEND;
+    v_numarray(i):=i+100;
+  END LOOP;
+  RETURN (v_numarray);
+end;
+/
+
+SELECT * FROM TABLE(f_table);
+
+-- Table Functions involving Object Types
+CREATE TYPE temp_adds IS TABLE OF address;
+/
+
+CREATE OR REPLACE FUNCTION f_table_obj RETURN temp_adds
+IS
+  v_temp_adds temp_adds :=temp_adds();
+BEGIN
+  v_temp_adds.EXTEND(5);
+  v_temp_adds(1):=
+  address('20 Spring St.',null,'New York','NY','10020','USA');
+  v_temp_adds(2):=
+  address('Suite 206','Prospect Blvd','Bloomington','IL','60610','USA');
+  v_temp_adds(3):=
+  address('1 Woodlake Dr.',null,'Piscataway','NJ','08540','USA');
+  v_temp_adds(4):=
+  address('#9','Hayes Avenue','Dallas','TX','11134','USA');
+  v_temp_adds(5):=
+  address('1 Franklin Ct.',null,'Franklin','MA','17012','USA');
+  RETURN (v_temp_adds);
+END;
+/
+
+SELECT * FROM TABLE(f_table_obj);
+
+-- Pipelined Table Functions
+CREATE OR REPLACE FUNCTION f_table_obj_pipelined
+RETURN temp_adds PIPELINED
+IS
+  v_address address;
+BEGIN
+  FOR i IN 1..5 LOOP
+    IF (i=1) THEN
+      v_address :=
+      address('20 Spring St.',null,'New York','NY','10020','USA');
+    ELSIF (i=2) THEN
+      v_address :=
+      address('Suite 206','Prospect Blvd','Bloomington','IL','60610','USA');
+    ELSIF (i=3) THEN
+      v_address :=
+      address('1 Woodlake Dr.',null,'Piscataway','NJ','08540','USA');
+    ELSIF (i=4) THEN
+      v_address :=
+      address('#9','Hayes Avenue','Dallas','TX','11134','USA');
+    ELSIF (i=5) THEN
+      v_address :=
+      address('1 Franklin Ct.',null,'Franklin','MA','17012','USA');
+    END IF;
+    PIPE ROW(v_address);
+  END LOOP;
+  RETURN;
+END;
+/
+
+SELECT * FROM TABLE(f_table_obj_pipelined);
+
+-- A pipelined Table Function that returns a PL/SQL type
+CREATE OR REPLACE PACKAGE pkg_table_func
+IS
+  TYPE address_rec IS RECORD
+  (LINE1 VARCHAR2(20),
+   LINE2 VARCHAR2(20),
+   CITY VARCHAR2(20),
+   STATE_CODE VARCHAR2(2),
+   ZIP VARCHAR2(13),
+   COUNTRY_CODE VARCHAR2(4));
+   
+   TYPE temp_adds IS TABLE OF address_rec;
+END;
+/
+
+CREATE OR REPLACE FUNCTION f_table_plsql_pipelined
+RETURN pkg_table_func.temp_adds
+PIPELINED
+IS
+  v_address pkg_table_func.address_rec;
+BEGIN
+  FOR i IN 1..3 LOOP
+    IF (i=1) THEN
+      v_address.line1 :='20 Spring St.';
+      v_address.line2 :=null;
+      v_address.city :='New York';
+      v_address.state_code :='NY';
+      v_address.zip :='10020';
+      v_address.country_code :='USA';
+    ELSIF (i=2) THEN
+      v_address.line1 :='Suite 206';
+      v_address.line2 :='Prospect Blvd';
+      v_address.city :='Bloomington';
+      v_address.state_code :='IL';
+      v_address.zip :='60610';
+      v_address.country_code :='USA';
+    ELSIF (i=3) THEN
+      v_address.line1 :='1 Woodlake Dr.';
+      v_address.line2 :=null;
+      v_address.city :='Piscataway';
+      v_address.state_code :='NJ';
+      v_address.zip :='08540';
+      v_address.country_code :='USA';
+    END IF;
+    PIPE ROW(v_address);
+  END LOOP;
+  RETURN;
+END;
+/
+
+SELECT * FROM TABLE(f_table_plsql_pipelined);
+
+-- Passing data from one table function to another
+-- in a pipelined fashion
+CREATE OR REPLACE FUNCTION f_table_plsql2_pipelined(p_ref_cursor SYS_REFCURSOR)
+RETURN pkg_table_func.temp_adds PIPELINED
+IS
+  v_address1 pkg_table_func.address_rec;
+  v_address2 pkg_table_func.address_rec;
+BEGIN
+  LOOP
+    FETCH p_ref_cursor INTO v_address1;
+    EXIT WHEN p_ref_cursor%NOTFOUND;
+    IF (v_address1.city='New York') THEN
+      v_address2.line1 :='P.O.Box 2215';
+      v_address2.line2 :=null;
+      v_address2.city :='New York';
+      v_address2.state_code :='NY';
+      v_address2.zip :='10020-2215';
+      v_address2.country_code :='USA';
+    ELSIF (v_address1.city='Bloomington') THEN
+      v_address2.line1 :='P.O.Box 6615';
+      v_address2.line2 :=null;
+      v_address2.city :='Bloomington';
+      v_address2.state_code :='IL';
+      v_address2.zip :='60610-6615';
+      v_address2.country_code :='USA';
+    ELSIF (v_address1.city='Piscataway') THEN
+      v_address2.line1 :='P.O.Box 0001';
+      v_address2.line2 :=null;
+      v_address2.city :='Piscataway';
+      v_address2.state_code :='NJ';
+      v_address2.zip :='08540';
+      v_address2.country_code :='USA';
+    END IF;
+    PIPE ROW(v_address2);
+  END LOOP;
+  close p_ref_cursor;
+  RETURN;
+END;
+/
+
+SELECT * FROM TABLE(f_table_plsql2_pipelined(
+                   CURSOR(SELECT * FROM TABLE(f_table_plsql_pipelined()))));
+
+-- Multilevel Collections
+CREATE OR REPLACE TYPE varray_one IS VARRAY(10)OF NUMBER;
+/
+CREATE OR REPLACE TYPE varray_one_nested IS VARRAY(10)OF varray_one;
+/
+CREATE OR REPLACE TYPE varray_two_nested IS VARRAY(10)OF varray_one_nested;
+/
+
+DECLARE
+  v1 varray_one;
+  v2 varray_one_nested;
+  v3 varray_two_nested;
+BEGIN
+  v1 :=varray_one(1,2,3);
+  v2 :=varray_one_nested(varray_one(11,12,13),varray_one(21,22,23));
+  v3 :=varray_two_nested(
+    varray_one_nested(varray_one(111,112,113),varray_one(121,122,123)),
+    varray_one_nested(varray_one(211,212,213),varray_one(221,222,223)));
+  dbms_output.put_line('The elements of one-dimensional VARRAY v1 are:');
+  for i in 1..v1.count loop
+    dbms_output.put_line(v1(i));
+  end loop;
+  dbms_output.put_line('The elements of two-dimensional VARRAY v2 are:');
+  for i in 1..v2.count loop
+    for j in 1..v2(i).count loop
+      dbms_output.put_line(v2(i)(j));
+    end loop;
+  end loop;
+  dbms_output.put_line('The elements of three-dimensional VARRAY v3 are:');
+  for i in 1..v3.count loop
+    for j in 1..v3(i).count loop
+      for k in 1..v3(i)(j).count loop
+        dbms_output.put_line(v3(i)(j)(k)); 
+      end loop;
+    end loop;
+  end loop;
+END;
+/
+DECLARE
+  TYPE varray_one IS VARRAY(10)OF NUMBER;
+  TYPE varray_one_nested IS VARRAY(10)OF varray_one;
+  TYPE varray_two_nested IS VARRAY(10)OF varray_one_nested;
+  v1 varray_one;
+  v2 varray_one_nested;
+  v3 varray_two_nested;
+BEGIN
+  /*Continue further logic */
+  null;
+END;
+/
+DECLARE
+  TYPE varray_one IS VARRAY(10)OF NUMBER;
+  TYPE varray_one_nested IS VARRAY(10)OF varray_one;
+  TYPE varray_two_nested IS VARRAY(10)OF varray_one_nested;
+  v1 varray_one;
+  v2 varray_one_nested;
+  v3 varray_two_nested;
+BEGIN
+  v1 :=varray_one(1,2,3);
+  v2 :=varray_one_nested(varray_one(11,12,13),varray_one(21,22,23));
+  v3 :=varray_two_nested(
+    varray_one_nested(varray_one(111,112,113),varray_one(121,122,123)),
+    varray_one_nested(varray_one(211,212,213),varray_one(221,222,223)));
+  dbms_output.put_line('The elements of one-dimensional VARRAY v1 are:');
+  for i in 1..v1.count loop
+    dbms_output.put_line(v1(i));
+  end loop;
+  dbms_output.put_line('The elements of two-dimensional VARRAY v2 are:');
+  for i in 1..v2.count loop
+    for j in 1..v2(i).count loop
+      dbms_output.put_line(v2(i)(j));
+    end loop;
+  end loop;
+  dbms_output.put_line('The elements of three-dimensional VARRAY v3 are:');
+  for i in 1..v3.count loop
+    for j in 1..v3(i).count loop
+      for k in 1..v3(i)(j).count loop
+        dbms_output.put_line(v3(i)(j)(k));
+      end loop;
+    end loop;
+  end loop;
+END;
+/

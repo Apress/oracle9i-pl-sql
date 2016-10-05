@@ -1,0 +1,75 @@
+-- Procedure log_error
+CREATE OR REPLACE PROCEDURE log_error
+			    (p_order_id NUMBER,
+			     p_error_code NUMBER,
+			     p_error_text VARCHAR2)
+IS
+  PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+  INSERT INTO error_log VALUES
+  (p_order_id,p_error_code,p_error_text,USER,SYSDATE);
+  COMMIT;
+END;
+/
+
+-- Procedure create_order
+CREATE OR REPLACE PROCEDURE create_order(p_order_id NUMBER)
+IS
+BEGIN
+  INSERT INTO order_tab VALUES(p_order_id,SYSDATE,NULL,NULL,1001);
+  COMMIT;
+EXCEPTION WHEN OTHERS THEN
+  log_error(p_order_id,SQLCODE,SQLERRM);
+  ROLLBACK;
+END;
+/
+
+DECLARE
+  PRAGMA AUTONOMOUS_TRANSACTION;
+  FUNCTION dummy_log_error RETURN NUMBER;
+  v_num NUMBER(1):=0;
+  retcd NUMBER :=dummy_log_error;
+  FUNCTION dummy_log_error RETURN NUMBER
+  IS
+  BEGIN
+    INSERT INTO error_log VALUES (-99,-99,’Dummy Error!’,USER,SYSDATE);
+    RETURN (-99);
+  END;
+BEGIN
+  INSERT INTO error_log VALUES (v_num,v_num,‘No Error!’,USER,SYSDATE);
+  COMMIT;
+END;
+/
+
+-- Autonomous triggers
+create or replace trigger bi_order_tab
+before insert on order_tab for each row
+declare
+  pragma autonomous_transaction;
+begin
+  insert into order_tran_coming_in values (:NEW.order_id,
+                                           :NEW.order_date,
+                                           SYSDATE,
+                                           'N');
+  commit;
+end;
+/
+create or replace trigger ai_order_tab
+after insert on order_tab for each row
+declare
+  pragma autonomous_transaction;
+begin
+  update order_tran_coming_in 
+  set    success_flag = 'Y'
+  where  order_id = :NEW.order_id;
+  commit;
+end;
+/
+BEGIN
+  INSERT INTO order_tab VALUES(102,SYSDATE,NULL,NULL,1001);
+  INSERT INTO order_tab VALUES(103,SYSDATE,NULL,NULL,1001);
+  INSERT INTO order_tab VALUES(103,SYSDATE,NULL,NULL,1001);
+EXCEPTION WHEN DUP_VAL_ON_INDEX THEN
+  ROLLBACK;
+END;
+/

@@ -1,0 +1,195 @@
+-- Trigger ai_org_trig
+CREATE OR REPLACE TRIGGER ai_org_trig
+AFTER INSERT ON org_tab
+FOR EACH ROW
+BEGIN
+  UPDATE sec_hrc_audit
+  SET num_rows =num_rows+1
+  WHERE hrc_code =:NEW.hrc_code;
+  IF (SQL%NOTFOUND) THEN
+    INSERT INTO sec_hrc_audit VALUES (:NEW.hrc_code,1);
+  END IF;
+END;
+/
+
+-- Trigger ai_org_trig_statement
+CREATE OR REPLACE TRIGGER ai_org_trig_statement
+AFTER INSERT ON org_tab
+BEGIN
+  FOR idx IN (SELECT hrc_code,COUNT(*)cnt
+              FROM org_tab
+              GROUP BY hrc_code) LOOP
+    UPDATE sec_hrc_audit
+    SET num_rows =idx.cnt
+    WHERE hrc_code =idx.hrc_code;
+    IF (SQL%NOTFOUND) THEN
+      INSERT INTO sec_hrc_audit VALUES (idx.hrc_code,idx.cnt);
+    END IF;
+  END LOOP;
+END;
+/
+-- Trigger ai_org_trig with a REFERENCING clause
+CREATE OR REPLACE TRIGGER ai_org_trig
+AFTER INSERT ON org_tab
+REFERENCING NEW AS new_org
+FOR EACH ROW
+BEGIN
+  UPDATE sec_hrc_audit
+  SET num_rows =num_rows+1
+  WHERE hrc_code =:new_org.hrc_code;
+  IF (SQL%NOTFOUND) THEN
+    INSERT INTO sec_hrc_audit VALUES (:new_org.hrc_code,1);
+  END IF;
+END;
+/
+-- Trigger ai_org_trig with REFERENCING and WHEN clauses
+CREATE OR REPLACE TRIGGER ai_org_trig
+AFTER INSERT ON org_tab
+REFERENCING NEW AS new_org
+FOR EACH ROW
+WHEN (new_org.hrc_code <>1)
+BEGIN
+  UPDATE sec_hrc_audit
+  SET num_rows =num_rows+1
+  WHERE hrc_code =:new_org.hrc_code;
+  IF (SQL%NOTFOUND) THEN
+    INSERT INTO sec_hrc_audit VALUES (:new_org.hrc_code,1);
+  END IF;
+END;
+/
+
+-- Trigger ai_org_trig with multiple triggering events
+CREATE OR REPLACE TRIGGER ai_org_trig
+AFTER INSERT OR DELETE ON org_tab
+FOR EACH ROW
+BEGIN
+  IF INSERTING THEN
+    UPDATE sec_hrc_audit
+    SET num_rows =num_rows+1
+    WHERE hrc_code =:NEW.hrc_code;
+    IF (SQL%NOTFOUND) THEN
+      INSERT INTO sec_hrc_audit VALUES (:NEW.hrc_code,1);
+    END IF;
+  ELSIF DELETING THEN
+    UPDATE sec_hrc_audit
+    SET num_rows =num_rows-1
+    WHERE hrc_code =:OLD.hrc_code;
+  END IF;
+END;
+/
+
+-- INSTEAD-OF triggers
+CREATE VIEW hrc_org_site
+AS
+  SELECT h.hrc_code,hrc_descr,
+         o.org_id,org_short_name,org_long_name,
+         os.site_no,site_descr
+  FROM org_site_tab os,org_tab o,hrc_tab h,site_tab s
+  WHERE os.org_id =o.org_id
+  AND o.hrc_code =h.hrc_code
+  AND os.site_no =s.site_no;
+
+CREATE OR REPLACE TRIGGER hrc_org_site_trig
+INSTEAD OF INSERT OR UPDATE OR DELETE on hrc_org_site
+FOR EACH ROW
+BEGIN
+  IF INSERTING THEN
+    INSERT INTO hrc_tab VALUES (:NEW.hrc_code,:NEW.hrc_descr);
+    INSERT INTO org_tab VALUES (:NEW.hrc_code,:NEW.org_id,
+    :NEW.org_short_name, :NEW.org_long_name);
+    INSERT INTO org_site_tab VALUES (:NEW.org_id,:NEW.site_no);
+  ELSIF UPDATING THEN
+    IF (:NEW.hrc_descr !=:OLD.hrc_descr) THEN
+      UPDATE hrc_tab
+      SET hrc_descr =:NEW.hrc_descr
+      WHERE hrc_code =:OLD.hrc_code;
+    END IF;
+    IF (:NEW.org_short_name !=:OLD.org_short_name) THEN
+      UPDATE org_tab
+      SET org_short_name =:NEW.org_short_name,
+          org_long_name =:NEW.org_long_name
+      WHERE hrc_code =:OLD.hrc_code
+      AND org_id =:OLD.org_id;
+    ELSIF (:NEW.org_long_name !=:OLD.org_long_name) THEN
+      UPDATE org_tab
+      SET org_long_name =:NEW.org_long_name
+      WHERE hrc_code =:OLD.hrc_code
+      AND org_id =:OLD.org_id;
+    END IF;
+    UPDATE org_site_tab
+    SET site_no =:NEW.site_no
+    WHERE org_id =:NEW.org_id;
+    IF (SQL%NOTFOUND) THEN
+      INSERT INTO org_site_tab VALUES (:NEW.org_id,:NEW.org_id);
+    END IF;
+  ELSIF DELETING THEN
+    DELETE org_site_tab WHERE org_id =:OLD.org_id;
+    DELETE org_level WHERE org_id =:OLD.org_id;
+    DELETE org_tab WHERE hrc_code =:OLD.hrc_code
+    AND org_id =:OLD.org_id;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20010,'ERR occurred in trigger hrc_org_site_trig '||
+  SQLERRM);
+END;
+/
+
+-- Testing of the above trigger
+-- INSERT operation
+SELECT * FROM hrc_tab WHERE hrc_code =11;
+SELECT * FROM org_tab WHERE org_id =1012;
+SELECT * FROM org_site_tab WHERE org_id =1012;
+INSERT INTO hrc_org_site VALUES (11,'ANALYST',1012,'Office of Analyst',
+2 'Office of Analyst',4,null);
+SELECT * FROM hrc_tab WHERE hrc_code =11;
+SELECT * FROM org_tab WHERE org_id =1012;
+SELECT * FROM org_site_tab WHERE org_id =1012;
+
+-- UPDATE operation
+UPDATE hrc_org_site SET org_short_name ='Office of Analyst ABC Inc.', 
+       org_long_name ='Office of Analyst ABC Inc.',site_no =4
+WHERE hrc_code =11
+AND org_id =1012;
+select * from hrc_tab where hrc_code =11;
+select * from org_tab where org_id =1012;
+select * from org_site_tab where org_id =1012;
+
+-- DELETE operation
+DELETE hrc_org_site WHERE org_id =1012;
+select * from hrc_tab where hrc_code =11;
+select * from org_tab where org_id =1012;
+select * from org_site_tab where org_id =1012;
+select * from org_level where org_id =1012;
+
+-- New Database triggers
+CREATE OR REPLACE TRIGGER On_Logon
+AFTER LOGON
+ON SCHEMA
+BEGIN
+  DBMS_UTILITY.ANALYZE_SCHEMA(sys.login_user,'ESTIMATE');
+END;
+/
+CREATE TABLE DDL_AUDIT
+(object_name VARCHAR2(30)NOT NULL,
+ Object_type VARCHAR2(30)NOT NULL,
+ WHEN_CREATED DATE NOT NULL,
+ WHO_CREATED VARCHAR2(30)NOT NULL,
+ WHEN_UPDATED DATE,
+ WHO_UPDATED VARCHAR2(30));
+
+CREATE OR REPLACE TRIGGER after_ddl_creation
+AFTER CREATE ON SCHEMA
+BEGIN
+  INSERT INTO ddl_audit VALUES
+  (SYS.DICTIONARY_OBJ_NAME,SYS.DICTIONARY_OBJ_TYPE,SYSDATE,USER,NULL,NULL);
+END;
+/
+
+CREATE OR REPLACE PROCEDURE p_dummy
+IS
+BEGIN
+  NULL;
+END;
+/
+
+SELECT * FROM ddl_audit;

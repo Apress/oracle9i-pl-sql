@@ -1,0 +1,378 @@
+-- A simple HTML script that displays two rows of data in tabular form
+<HTML>
+<HEAD>
+<TITLE>Organization Records</TITLE>
+</HEAD>
+<BODY>
+<H1>Organization Records</H1>
+<TABLE BORDER="1 ">
+<TR><TH>Hierarchy</TH><TH>Org Long Name</TH></TR>
+<TR>
+<TD>Director</TD>
+<TD>Office of Director Tech ABC Inc.</TD>
+</TR>
+<TR>
+<TD>Director</TD>
+<TD>Office of Dir.SSL</TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>
+
+-- Procedure p_test
+CREATE OR REPLACE PROCEDURE p_test
+IS
+BEGIN
+  htp.p('<HTML>');
+  htp.p('<HEAD>');
+  htp.p('<TITLE>Organization Records</TITLE>');
+  htp.p('</HEAD>');
+  htp.p('<BODY>');
+  htp.p('<H1>Organization Records</H1>');
+  htp.p('<TABLE BORDER="1 ">');
+  htp.p('<TR><TH>Hierarchy</TH><TH>Org Long Name</TH></TR>');
+  htp.p('<TR>');
+  htp.p('<TD>Director</TD>');
+  htp.p('<TD>Office of Director Tech ABC Inc.</TD>');
+  htp.p('</TR>');
+  htp.p('<TR>');
+  htp.p('<TD>Director</TD>');
+  htp.p('<TD>Office of Dir.SSL</TD>');
+  htp.p('</TR>');
+  htp.p('</TABLE>');
+  htp.p('</BODY>');
+  htp.p('</HTML>');
+end;
+/
+
+-- Procedure p_displayOrgs
+CREATE OR REPLACE PROCEDURE p_displayOrgs
+IS
+BEGIN
+  htp.p('<HTML>');
+  htp.p('<HEAD>');
+  htp.p('<TITLE>Organization Records</TITLE>');
+  htp.p('</HEAD>');
+  htp.p('<BODY>');
+  htp.p('<H1>Organization Records</H1>');
+  htp.p('<TABLE BORDER="1 ">');
+  htp.p('<TR><TH>Hierarchy</TH><TH>Org Long Name</TH></TR>');
+  for idx in (select h.hrc_descr,o.org_long_name
+              from org_tab o,hrc_tab h
+              where o.hrc_code =h.hrc_code
+              order by h.hrc_code )loop
+    htp.p('<TR>');
+    htp.p('<TD>'||idx.hrc_descr||'</TD>');
+    htp.p('<TD>'||idx.org_long_name||'</TD>');
+    htp.p('</TR>');
+  end loop;
+  htp.p('</TABLE>');
+  htp.p('</BODY>');
+  htp.p('</HTML>');
+end;
+/
+
+-- Procedure p_displayOrgs_with_param
+CREATE OR REPLACE PROCEDURE p_displayOrgs_with_param(ip_hrc_code NUMBER)
+IS
+BEGIN
+  htp.p('<HTML>');
+  htp.p('<HEAD>');
+  htp.p('<TITLE>Organization Records</TITLE>');
+  htp.p('</HEAD>');
+  htp.p('<BODY>');
+  htp.p('<H1>Organization Records</H1>');
+  htp.p('<TABLE BORDER="1 ">');
+  htp.p('<TR><TH>Hierarchy</TH><TH>Org Long Name</TH></TR>');
+  for idx in (select h.hrc_descr,o.org_long_name
+              from org_tab o,hrc_tab h
+              where o.hrc_code =h.hrc_code
+              and h.hrc_code =ip_hrc_code
+              order by h.hrc_code )loop
+    htp.p('<TR>');
+    htp.p('<TD>'||idx.hrc_descr||'</TD>');
+    htp.p('<TD>'||idx.org_long_name||'</TD>');
+    htp.p('</TR>');
+  end loop;
+  htp.p('</TABLE>');
+  htp.p('</BODY>');
+  htp.p('</HTML>');
+end;
+/
+
+-- An HTML form to accept user input
+<HTML>
+<HEAD>
+<TITLE>Organization Records</TITLE>
+</HEAD>
+<BODY>
+<H1>Organization Records</H1>
+<P>Enter Hrc Code and Press the <b>Run </b>button.</P>
+<FORM method="post" action="p_displayOrgs_with_param">
+  <P>Hrc Code
+    <INPUT type="text" name="ip_hrc_code" maxlength="4" size="4">
+  </P>
+  <P>
+    <INPUT type="submit" value="Run">
+  </P>
+</FORM>
+</BODY>
+</HTML>
+
+-- Procedure p_displayOrgs_with_param_form
+CREATE OR REPLACE PROCEDURE p_displayOrgs_with_param_form
+IS
+BEGIN
+  htp.p('<HTML>');
+  htp.p('<HEAD>');
+  htp.p('<TITLE>Organization Records</TITLE>');
+  htp.p('</HEAD>');
+  htp.p('<BODY>');
+  htp.p('<H1>Organization Records</H1>');
+  htp.p('<P>Enter Hrc Code and Press the <b>Run </b>button.</P>');
+  htp.p('<FORM method="get" action="p_displayOrgs_with_param">');
+  htp.p('<P>Hrc Code
+    <INPUT type="text" name="ip_hrc_code" maxlength="4" size="4">
+    </P>');
+  htp.p('<P>
+    <INPUT type="submit" value="Run">
+    </P>');
+  htp.p('</FORM>');
+  htp.p('</BODY>');
+  htp.p('</HTML>');
+end;
+/
+
+-- procedure p_displayOrgs rewritten as a PSP
+<%@page language="PL/SQL"%>
+<%@plsql procedure="p_displayOrgs_psp"%>
+<HTML>;
+<HEAD>
+<TITLE>Organization Records</TITLE>
+</HEAD>
+<BODY>
+<H1>Organization Records</H1>
+<TABLE BORDER="1 ">
+<TR><TH>Hierarchy</TH><TH>Org Long Name</TH></TR>
+<%
+  for idx in (select h.hrc_descr,o.org_long_name
+              from org_tab o,hrc_tab h
+              where o.hrc_code =h.hrc_code
+              order by h.hrc_code )loop
+%>
+<TR>
+<TD><%=idx.hrc_descr %></TD>
+<TD><%=idx.org_long_name %></TD>
+</TR>
+<%end loop;%>
+</TABLE>
+</BODY>
+</HTML>
+
+-- PSP code for user-interface of Web Application
+<%@page language="PL/SQL"%>
+<%@plsql procedure="p_webapporg_psp"%>
+<HTML>
+<HEAD>
+<TITLE>Organization Web Page </TITLE>
+</HEAD>
+<BODY>
+<H1>Add,Modify or Delete Organizations</H1>
+<P>Enter Hrc Code,Org Id,Short Name,Long Name and click on
+  <b>ADD,MODIFY </b>or <b>DELETE</b>buttons</P>
+<form method=post action="WebAppOrg.run">
+<BR><BR>
+<B>Hrc Code:</B>&nbsp <input name="ip_hrc_code" value=""><BR>
+<B>Org Id:</B>&nbsp <input name="ip_org_id" value=""><BR>
+<B>Short Name:</B>&nbsp <input name="ip_org_short_name" value=""><BR>
+<B>Long Name:</B>&nbsp <input name="ip_org_long_name" value=""><BR>
+<BR><BR>
+<input type="submit" name="ip_op" value="Add">
+<input type="submit" name="ip_op" value="Delete">
+<input type="submit" name="ip_op" value="Modify">
+</FORM>
+</BODY>
+</HTML>
+
+-- Business Logic for Web Application
+CREATE OR REPLACE PACKAGE WebAppOrg
+IS
+  PROCEDURE insertOrg (ip_hrc_code NUMBER,
+                       ip_org_id NUMBER,
+                       ip_org_short_name VARCHAR2,
+                       ip_org_long_name VARCHAR2);
+
+  PROCEDURE updateOrg(ip_org_id NUMBER,
+                      ip_org_short_name VARCHAR2,
+                      ip_org_long_name VARCHAR2);
+
+  PROCEDURE deleteOrg(ip_org_id NUMBER);
+  
+  PROCEDURE run (ip_op VARCHAR2,
+                 ip_hrc_code NUMBER,
+                 ip_org_id NUMBER,
+                 ip_org_short_name VARCHAR2,
+                 ip_org_long_name VARCHAR2);
+END WebAppOrg;
+/
+CREATE OR REPLACE PACKAGE BODY WebAppOrg
+IS
+  --Procedure to delete records from the org_site_tab table
+  --before deleting from org_table.This procedure is called
+  --from the deleteOrg procedure
+  PROCEDURE deleteOrgSites(ip_org_id NUMBER,
+                           op_retcd OUT NUMBER,
+                           op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    DELETE org_site_tab WHERE org_id =ip_org_id;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END deleteOrgSites;
+  
+  --Procedure to insert a new record in the org_tab table
+  PROCEDURE insertOrg (ip_hrc_code NUMBER,
+                       ip_org_id NUMBER,
+                       ip_org_short_name VARCHAR2,
+                       ip_org_long_name VARCHAR2)
+  IS
+  BEGIN
+    INSERT INTO org_tab VALUES
+    (ip_hrc_code,ip_org_id,ip_org_short_name,ip_org_long_name);
+    htp.p('Organization with Id '||TO_CHAR(ip_org_id)||
+    'successfully inserted.');
+  EXCEPTION WHEN DUP_VAL_ON_INDEX THEN
+    htp.p('Organization with Id '||TO_CHAR(ip_org_id)||'already exists.');
+  WHEN OTHERS THEN
+    htp.p(SQLERRM);
+  END insertOrg;
+
+  --Procedure to modify the long and short names for a
+  --given org_id in the org_tab table
+  PROCEDURE updateOrg(ip_org_id NUMBER,
+                      ip_org_short_name VARCHAR2,
+                      ip_org_long_name VARCHAR2)
+  IS
+  BEGIN
+    UPDATE org_tab
+    SET org_short_name =ip_org_short_name,
+        org_long_name =ip_org_long_name
+    WHERE org_id =ip_org_id;
+    IF (SQL%NOTFOUND)THEN
+      htp.p('Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.');
+      RETURN;
+    END IF;
+    htp.p('Organization with Id '||TO_CHAR(ip_org_id)||
+    'successfully modified.');
+  EXCEPTION WHEN OTHERS THEN
+    htp.p(SQLERRM);
+  END updateOrg;
+
+  --Procedure to delete a record from the org_tab table
+  PROCEDURE deleteOrg(ip_org_id NUMBER)
+  IS
+    op_retcd NUMBER;
+    op_err_msg VARCHAR2(1000);
+  BEGIN
+    deleteOrgSites(ip_org_id,op_retcd,op_err_msg);
+    IF (op_retcd <>0)then
+      htp.p('Delete of Org Sites failed with error '||op_err_msg);
+      RETURN;
+    END IF;
+    DELETE org_tab WHERE org_id =ip_org_id;
+    IF (SQL%NOTFOUND)THEN
+      htp.p('Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.');
+      RETURN;
+    END IF;
+    htp.p('Organization with Id '||TO_CHAR(ip_org_id)||'successfully deleted.');
+  EXCEPTION WHEN OTHERS THEN
+    htp.p(SQLERRM);
+  END deleteOrg;
+
+  PROCEDURE run (ip_op VARCHAR2,
+                 ip_hrc_code NUMBER,
+                 ip_org_id NUMBER,
+                 ip_org_short_name VARCHAR2,
+                 ip_org_long_name VARCHAR2)
+  IS
+  BEGIN
+    IF (ip_op ='Add')THEN
+      IF ((ip_hrc_code IS NULL)or (ip_org_id IS NULL)or
+         (ip_org_short_name IS NULL)or (ip_org_long_name IS NULL))THEN
+        htp.p('All input fields must be entered for the Add operation.');
+        RETURN;
+      END IF;
+    insertOrg (ip_hrc_code,
+               ip_org_id,
+               ip_org_short_name,
+               ip_org_long_name);
+    ELSIF (ip_op ='Modify')THEN
+      IF ((ip_hrc_code IS NULL)or (ip_org_id IS NULL)or
+         (ip_org_short_name IS NULL)or (ip_org_long_name IS NULL))THEN
+        htp.p('All input fields must be entered for the Modify operation.');
+        RETURN;
+      END IF;
+      updateOrg(ip_org_id,
+                ip_org_short_name,
+                ip_org_long_name);
+    ELSIF (ip_op ='Delete')THEN
+      IF (ip_org_id IS NULL)THEN
+        htp.p('Org Id must be entered for the Delete operation.');
+        RETURN;
+      END IF;
+      deleteOrg(ip_org_id);
+    END IF;
+  END run;
+END WebAppOrg;
+/
+
+-- Procedure p_send_email
+CREATE OR REPLACE PROCEDURE p_send_email
+                            (p_mailhost VARCHAR2,
+                             p_from_address VARCHAR2,
+                             p_to_address VARCHAR2,
+                             p_message_text VARCHAR2,
+                             p_retcd OUT NUMBER,
+                             p_err_msg OUT VARCHAR2)
+IS
+  mail_conn utl_smtp.connection;
+BEGIN
+  mail_conn :=utl_smtp.open_connection(p_mailhost,25);
+  utl_smtp.helo(mail_conn,p_mailhost);
+  utl_smtp.mail(mail_conn,p_from_address);
+  utl_smtp.rcpt(mail_conn,p_to_address);
+  utl_smtp.open_data(mail_conn);
+  utl_smtp.write_data(mail_conn,p_message_text);
+  utl_smtp.close_data(mail_conn);
+  utl_smtp.quit(mail_conn);
+  p_retcd :=0;
+EXCEPTION
+  WHEN OTHERS THEN
+    p_retcd :=SQLCODE;
+    p_err_msg :=SQLERRM;
+END;
+/
+
+-- Sample code to execute p_send_email
+declare
+  retcd number;
+  err_msg varchar2(1000);
+begin
+  p_send_email('mail.compunnel.com',
+               'blakshman@compunnel.com',
+               'blakshman@compunnel.com',
+               'From:'||'Bulusu'||CHR(13)||CHR(10)||
+               'Subject:'||'Message from Bulusu'||CHR(13)||CHR(10)||
+               CHR(13)||CHR(10)||
+               'This is a test message.',
+               retcd,
+               err_msg);
+  IF (retcd <>0)THEN
+    dbms_output.put_line('ERR:'||err_msg);
+  END IF;
+end;
+/

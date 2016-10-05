@@ -1,0 +1,177 @@
+connect system/manager@ORCL;
+create user plsql9i identified by plsql9i;
+grant connect,resource,dba to plsql9i;
+
+connect plsql9i/plsql9i@ORCL;
+
+CREATE TABLE items_tab (item_code varchar2(6) PRIMARY KEY,
+			item_descr varchar2(20) NOT NULL);
+
+CREATE TABLE employee_test
+(empid number(10) PRIMARY KEY,
+ lastname varchar2(30) NOT NULL,
+ firstname varchar2(30) NOT NULL,
+ middle_initial varchar2(2));
+
+begin
+  insert into employee_test values (101,'SMITH','JOHN',null);
+  insert into employee_test values (102,'JOHNSON','ROBERT','L');
+  insert into employee_test values (103,'LAKSHMAN','BULUSU',null);
+  insert into employee_test values (104,'KNOP','VICTORIA','A');
+  commit;
+end;
+/
+
+-- Organizational Hierarchy System
+create table site_tab
+(site_no number(4) not null,
+ site_descr varchar2(20) not null);
+
+alter table site_tab add primary key (site_no);
+
+create table hrc_tab
+(hrc_code number(4) not null,
+ hrc_descr varchar2(20) not null);
+
+alter table hrc_tab add primary key (hrc_code);
+
+create table org_tab
+(hrc_code number(4) not null,
+ org_id NUMBER(8) not null,
+ org_short_name varchar2(30) not null,
+ org_long_name varchar2(60));
+
+alter table org_tab add sprimary key (hrc_code,org_id);
+alter table org_tab add constraint org_tab_uk unique (org_id);
+alter table org_tab
+add constraint org_tab_fk foreign key (hrc_code)references hrc_tab(hrc_code);
+
+create table org_site_tab
+(org_id number(8) not null,
+ site_no number(4) not null );
+
+alter table org_site_tab add primary key (org_id,site_no);
+alter table org_site_tab
+add constraint org_site_tab_fk1 foreign key (org_id)references org_tab(org_id);
+alter table org_site_tab
+add constraint org_site_tab_fk2 foreign key (site_no)
+references site_tab(site_no);
+
+create table org_level
+(org_id number(8) not null,
+ org_level varchar2(1) not null);
+
+alter table org_level add primary key (org_id);
+alter table org_level
+add constraint org_level_fk foreign key (org_id)references org_tab(org_id);
+alter table org_level
+add constraint org_level_ck CHECK (org_level IN ('C','E','M','L'));
+
+create table sec_hrc_tab
+(hrc_code number(4) not null,
+ hrc_descr varchar2(20) not null);
+
+create table sec_hrc_org_tab
+(hrc_code number(4) not null,
+ hrc_descr varchar2(20) not null,
+ org_id NUMBER(8) not null,
+ org_short_name varchar2(30) not null,
+ org_long_name varchar2(60));
+
+create table sec_hrc_audit
+(hrc_code number(4) not null,
+ num_rows number(8) not null );
+
+create sequence hrc_org_seq minvalue 1;
+
+insert into site_tab values (1,'New York');
+insert into site_tab values (2,'Washington');
+insert into site_tab values (3,'Chicago');
+insert into site_tab values (4,'Dallas');
+insert into site_tab values (5,'San Francisco');
+
+insert into hrc_tab values (1,'CEO/COO');
+insert into hrc_tab values (2,'VP');
+insert into hrc_tab values (3,'Director');
+insert into hrc_tab values (4,'Manager');
+insert into hrc_tab values (5,'Analyst');
+
+insert into org_tab values
+(1,1001,'Office of CEO ABC Inc.','Office of CEO ABC Inc.');
+insert into org_tab values
+(1,1002,'Office of CEO XYZ Inc.','Office of CEO XYZ Inc.');
+insert into org_tab values
+(1,1003,'Office of CEO DataPro Inc.','Office of CEO DataPro Inc.');
+insert into org_tab values
+(2,1004,'Office of VP Sales ABC Inc.','Office of VP Sales ABC Inc.');
+insert into org_tab values
+(2,1005,'Office of VP Mktg ABC Inc.','Office of VP Mktg ABC Inc.');
+insert into org_tab values
+(2,1006,'Office of VP Tech ABC Inc.','Office of VP Tech ABC Inc.');
+
+insert into org_site_tab values (1001,1);
+insert into org_site_tab values (1002,2);
+insert into org_site_tab values (1003,3);
+insert into org_site_tab values (1004,1);
+insert into org_site_tab values (1004,2);
+insert into org_site_tab values (1004,3);
+insert into org_site_tab values (1005,1);
+insert into org_site_tab values (1005,4);
+insert into org_site_tab values (1005,5);
+insert into org_site_tab values (1006,1);
+
+-- Order Entry Application System
+
+CREATE TABLE region_tab
+(region_id NUMBER(4) PRIMARY KEY,
+region_name VARCHAR2(11) NOT NULL);
+
+CREATE TABLE region_tab_temp AS
+  SELECT *FROM region_tab;
+
+CREATE TABLE sec_region_tab
+(region_id NUMBER(4) PRIMARY KEY,
+region_name VARCHAR2(11) NOT NULL);
+
+CREATE TABLE supplier_tab
+(supp_id NUMBER(6) PRIMARY KEY,
+ supp_name VARCHAR2(20) NOT NULL
+);
+
+CREATE TABLE order_tab
+(order_id NUMBER(10) PRIMARY KEY,
+order_date DATE NOT NULL,
+total_qty NUMBER,
+total_price NUMBER(15,2),
+supp_id NUMBER(6) REFERENCES supplier_tab(supp_id));
+
+CREATE TABLE order_items
+(order_id NUMBER(10) NOT NULL,
+item_id VARCHAR2(10) NOT NULL,
+unit_price NUMBER(11,2) NOT NULL,
+quantity NUMBER);
+
+ALTER TABLE order_items ADD CONSTRAINT pk_order_items
+PRIMARY KEY (order_id,item_id);
+
+CREATE TABLE error_log
+(order_id NUMBER(10) NOT NULL,
+error_code NUMBER NOT NULL,
+error_text VARCHAR2(1000) NOT NULL,
+logged_user VARCHAR2(30) NOT NULL,
+logged_date DATE NOT NULL);
+
+CREATE TABLE order_tran_coming_in
+(order_id NUMBER(10) NOT NULL,
+order_date DATE NOT NULL,
+tran_coming_in_date DATE NOT NULL,
+success_flag VARCHAR2(1) DEFAULT 'N' NOT NULL);
+
+INSERT INTO region_tab VALUES (1,'REGION1');
+INSERT INTO region_tab VALUES (2,'REGION2');
+INSERT INTO region_tab VALUES (3,'REGION3');
+INSERT INTO region_tab VALUES (4,'REGION4');
+
+INSERT INTO supplier_tab VALUES (1001,'Supplier 1001');
+
+INSERT INTO order_tab VALUES (101,sysdate,100,750,1001);

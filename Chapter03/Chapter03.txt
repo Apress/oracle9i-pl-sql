@@ -1,0 +1,422 @@
+-- An example of declaring a record
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER, 
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec hrc_org_rec;
+BEGIN
+  /*Do some processing */
+  null;
+END;
+/
+
+-- Accessing Individual Record elements
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec hrc_org_rec;
+BEGIN
+  v_example_rec.hrc_org_id :=1001;
+  v_example_rec.hrc_descr :='CEO/COO';
+  v_example_rec.org_short_name :='Office of CEO/COO ABC Inc.';
+  dbms_output.put_line('An example record:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_number(v_example_rec.hrc_org_id)||' '||
+  v_example_rec.hrc_descr||' '||
+  v_example_rec.org_short_name);
+END;
+/
+
+-- Accessing an entire record
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec1 hrc_org_rec;
+  v_example_rec2 hrc_org_rec;
+BEGIN
+  v_example_rec1.hrc_org_id :=1001;
+  v_example_rec1.hrc_descr :='CEO/COO';
+  v_example_rec1.org_short_name :='Office of CEO/COO ABC Inc.';
+  v_example_rec2 :=v_example_rec1;
+  dbms_output.put_line('An example record:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_number(v_example_rec2.hrc_org_id)||' '||
+  v_example_rec2.hrc_descr||' '||
+  v_example_rec2.org_short_name);
+END;
+/
+
+-- Testing for equality of records
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec1 hrc_org_rec;
+  v_example_rec2 hrc_org_rec;
+BEGIN
+  v_example_rec1.hrc_org_id :=1001;
+  v_example_rec1.hrc_descr :='CEO/COO';
+  v_example_rec1.org_short_name :='Office of CEO/COO ABC Inc.';
+  v_example_rec2.hrc_org_id :=1002;
+  v_example_rec2.hrc_descr :='VP ';
+  v_example_rec2.org_short_name :='Office of VP ABC Inc.';
+  IF ((v_example_rec1.hrc_org_id =v_example_rec2.hrc_org_id) AND
+     (v_example_rec1.hrc_descr =v_example_rec2.hrc_descr) AND
+     (v_example_rec1.org_short_name =v_example_rec2.org_short_name)) THEN
+    dbms_output.put_line('Both example records are identical.');
+  ELSE
+    dbms_output.put_line('The two example records are different.');
+  END IF;
+END;
+/
+
+-- Populating a Record with SELECT INTO
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec hrc_org_rec;
+BEGIN
+  SELECT hrc_org_seq.nextval,h.hrc_descr,o.org_short_name
+  INTO v_example_rec
+  FROM org_tab o,hrc_tab h
+  WHERE o.hrc_code =h.hrc_code
+  AND o.org_id =1001;
+  dbms_output.put_line('An example record:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_number(v_example_rec.hrc_org_id)||' '||
+  v_example_rec.hrc_descr||' '||
+  v_example_rec.org_short_name);
+END;
+/
+
+-- Populating a Record with FETCH INTO
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  v_example_rec hrc_org_rec;
+  CURSOR csr_hrc_org IS
+    SELECT hrc_org_seq.nextval,h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =1;
+BEGIN
+  OPEN csr_hrc_org;
+  dbms_output.put_line('An example output:');
+  dbms_output.new_line;
+  LOOP
+    FETCH csr_hrc_org INTO v_example_rec;
+    EXIT WHEN csr_hrc_org%NOTFOUND;
+    dbms_output.put_line(to_number(v_example_rec.hrc_org_id)||' '||
+    v_example_rec.hrc_descr||' '||
+    v_example_rec.org_short_name);
+  END LOOP;
+  CLOSE csr_hrc_org;
+END;
+/
+
+-- Defining and using a table-oriented record
+DECLARE
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO hrc_rec
+  FROM hrc_tab
+  WHERE hrc_code =1;
+  dbms_output.put_line('An example record:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||hrc_rec.hrc_descr);
+END;
+/
+
+-- Defining and using a cursor-oriented record
+DECLARE
+  CURSOR csr_hrc IS
+    SELECT *FROM hrc_tab ORDER BY 1;
+  hrc_rec csr_hrc%ROWTYPE;
+BEGIN
+  OPEN csr_hrc;
+  dbms_output.put_line('Hierarchy records:');
+  dbms_output.new_line;
+  LOOP
+    FETCH csr_hrc INTO hrc_rec;
+    EXIT WHEN csr_hrc%NOTFOUND;
+    dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||hrc_rec.hrc_descr);
+  END LOOP;
+  CLOSE csr_hrc;
+END;
+/
+
+-- INSERT statement involving entire records
+DECLARE
+  TYPE hrc_rec IS RECORD
+    (hrc_code NUMBER,
+     hrc_descr VARCHAR2(20));
+  v_example_rec hrc_rec;
+BEGIN
+  v_example_rec.hrc_code :=99;
+  v_example_rec.hrc_descr :='Web Analyst';
+  INSERT INTO hrc_tab VALUES v_example_rec;
+  COMMIT;
+END;
+/
+
+-- UPDATE statement involving entire records
+DECLARE
+  TYPE hrc_rec IS RECORD
+    (hrc_code NUMBER,
+     hrc_descr VARCHAR2(20));
+  v_example_rec hrc_rec;
+BEGIN
+  v_example_rec.hrc_code :=99;
+  v_example_rec.hrc_descr :='Web Analyst Sr.';
+  UPDATE hrc_tab SET ROW =v_example_rec WHERE hrc_code =99;
+  COMMIT;
+END;
+/
+
+-- An example of declaring an Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+BEGIN
+  /*Do some processing */
+  null;
+END;
+/
+
+-- Accessing an Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab(1):=1001;
+  v_example_tab(10):=1002;
+  v_example_tab(-10):=1003;
+  v_example_tab(v_num):=1004;
+  dbms_output.put_line('An example array:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_char(v_example_tab(1))||' '||
+  to_char(v_example_tab(10))||' '||
+  to_char(v_example_tab(-10))||' '||
+  to_char(v_example_tab(v_num)));
+END;
+/
+
+-- Accessing an entire Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab1 num_tab;
+  v_example_tab2 num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab1(1):=1001;
+  v_example_tab1(10):=1002;
+  v_example_tab1(-10):=1003;
+  v_example_tab1(v_num):=1004;
+  v_example_tab2 :=v_example_tab1;
+  dbms_output.put_line('An example array:');
+  dbms_output.new_line;
+  dbms_output.put_line(to_char(v_example_tab2(1))||' '||
+  to_char(v_example_tab2(10))||' '||
+  to_char(v_example_tab2(-10))||' '||
+  to_char(v_example_tab2(v_num)));
+END;
+/
+
+-- Accessing an undefined row of an Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab(1):=1001;
+  v_example_tab(10):=1002;
+  v_example_tab(-10):=1003;
+  v_example_tab(v_num):=1004;
+  dbms_output.put_line(to_char(v_example_tab(100)));
+END;
+/
+
+-- Sample code using exception while accessing an undefined row of 
+-- an Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab(1):=1001;
+  v_example_tab(10):=1002;
+  v_example_tab(-10):=1003;
+  v_example_tab(v_num):=1004;
+  dbms_output.put_line(to_char(v_example_tab(100)));
+EXCEPTION WHEN NO_DATA_FOUND THEN
+  dbms_output.put_line ('Invalid array element ');
+END;
+/
+
+-- Assigning rows of an Index-By table by means of a LOOP
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+BEGIN
+  FOR idx IN 1..10 LOOP
+    v_example_tab(idx):=(2**idx)+1;
+  END LOOP;
+  dbms_output.put_line('An example array:');
+  dbms_output.new_line;
+  FOR idx IN 1..10 LOOP
+    dbms_output.put_line(to_char(v_example_tab(idx)));
+  END LOOP;
+END;
+/
+
+-- Deleting an Index-by table using an empty Index-by table
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab1 num_tab;
+  v_example_tab2 num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab1(1):=1001;
+  v_example_tab1(10):=1002;
+  v_example_tab1(-10):=1003;
+  v_example_tab1(v_num):=1004;
+  v_example_tab1:=v_example_tab2;
+END;
+/
+
+-- Using the EXISTS method
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+  v_num NUMBER :=13;
+BEGIN
+  v_example_tab(1):=1001;
+  v_example_tab(10):=1002;
+  v_example_tab(-10):=1003;
+  v_example_tab(v_num):=1004;
+  IF v_example_tab.EXISTS(100) THEN
+    dbms_output.put_line(to_char(v_example_tab(100)));
+  END IF;
+END;
+/
+
+-- An example of COUNT method
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+BEGIN
+  FOR idx IN 1..10 LOOP
+    v_example_tab(idx):=(2**idx)+1;
+  END LOOP;
+  dbms_output.put_line('An example array:');
+  dbms_output.new_line;
+  FOR idx IN 1..v_example_tab.COUNT LOOP
+    dbms_output.put_line(to_char(v_example_tab(idx)));
+  END LOOP;
+END;
+/
+
+-- An example of the DELETE method
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+BEGIN
+  FOR idx IN 1..10 LOOP
+    v_example_tab(idx):=(2**idx)+1;
+  END LOOP;
+  v_example_tab.DELETE(1);
+  v_example_tab.DELETE(2,5);
+  v_example_tab.DELETE;
+END;
+/
+
+-- An example of the FIRST, LAST and NEXT methods
+DECLARE
+  TYPE num_tab IS TABLE OF NUMBER INDEX BY BINARY_INTEGER;
+  v_example_tab num_tab;
+  idx BINARY_INTEGER;
+BEGIN
+  FOR idx IN 1..10 LOOP
+    v_example_tab(idx):=(2**idx)+1;
+  END LOOP;
+  dbms_output.put_line('An example array:');
+  dbms_output.new_line;
+  idx :=v_example_tab.FIRST;
+  LOOP
+    dbms_output.put_line(to_char(v_example_tab(idx)));
+    EXIT WHEN idx =v_example_tab.LAST;
+    idx :=v_example_tab.NEXT(idx);
+  END LOOP;
+END;
+/
+
+-- Defining an Index-by table of records
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  TYPE hrc_org_tab IS TABLE OF hrc_org_rec INDEX BY BINARY_INTEGER;
+  v_example_tab hrc_org_tab;
+BEGIN
+  /*Do some processing */
+  null;
+END;
+/
+
+-- Creating and accessing rows of an Index-by table of records
+DECLARE
+  TYPE hrc_org_rec IS RECORD
+    (hrc_org_id NUMBER,
+     hrc_descr VARCHAR2(20),
+     org_short_name VARCHAR2(30));
+  TYPE hrc_org_tab IS TABLE OF hrc_org_rec INDEX BY BINARY_INTEGER;
+  v_example_tab hrc_org_tab;
+  CURSOR csr_hrc_org IS
+    SELECT hrc_org_seq.nextval hrc_org_id,h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =1;
+  i BINARY_INTEGER :=1;
+BEGIN
+  FOR idx IN csr_hrc_org LOOP
+    v_example_tab(i).hrc_org_id :=idx.hrc_org_id;
+    v_example_tab(i).hrc_descr :=idx.hrc_descr;
+    v_example_tab(i).org_short_name :=idx.org_short_name;
+    i :=i +1;
+  END LOOP;
+  dbms_output.put_line('An example output:');
+  dbms_output.new_line;
+  FOR j IN 1..v_example_tab.COUNT LOOP
+    dbms_output.put_line(to_char(v_example_tab(j).hrc_org_id)||' '||
+    v_example_tab(j).hrc_descr||' '||
+    v_example_tab(j).org_short_name);
+  END LOOP;
+END;
+/
+
+-- Associative arrays
+DECLARE
+  TYPE site_array IS TABLE OF NUMBER INDEX BY VARCHAR2(20);
+  v_example_array site_array;
+BEGIN
+  v_example_array('Edison'):=10;
+  v_example_array('Bloomington'):=11;
+  v_example_array('Sunnyvale'):=12;
+  dbms_output.put_line(v_example_array.FIRST);
+  dbms_output.put_line(v_example_array.LAST);
+  dbms_output.put_line(TO_CHAR(v_example_array(v_example_array.FIRST)));
+END;
+/

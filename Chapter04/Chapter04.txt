@@ -1,0 +1,258 @@
+-- An example showing handling of pre-defined exceptions
+DECLARE
+  v_descr VARCHAR2(20);
+BEGIN
+  SELECT hrc_descr
+  INTO v_descr
+  FROM hrc_tab
+  WHERE hrc_code =10;
+  dbms_output.put_line('The hierarchy description for code 10 is: '||v_descr);
+EXCEPTION WHEN NO_DATA_FOUND THEN
+  dbms_output.put_line('ERR:Invalid Hierarchy Code 10');
+END;
+/
+
+-- The above example using WHEN OTHERS clause
+DECLARE
+  v_descr VARCHAR2(20);
+BEGIN
+  SELECT hrc_descr
+  INTO v_descr
+  FROM hrc_tab
+  WHERE hrc_code =10;
+  dbms_output.put_line('The hierarchy description for code 10 is: '||v_descr);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line('ERR:Invalid Hierarchy Code 10');
+END;
+/
+
+-- The previous example using NO_DATA_FOUND and WHEN OTEHRS 
+DECLARE
+  v_descr VARCHAR2(20);
+BEGIN
+  SELECT hrc_descr
+  INTO v_descr
+  FROM hrc_tab
+  WHERE hrc_code =10;
+  dbms_output.put_line('The hierarchy description for code 10 is: '||v_descr);
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    dbms_output.put_line('ERR:Invalid Hierarchy Code 10');
+  WHEN OTHERS THEN
+    dbms_output.put_line('ERR:An error occurred');
+END;
+/
+
+-- The above example using SQLCODE and SQLERRM
+DECLARE
+  v_descr VARCHAR2(20);
+BEGIN
+  SELECT hrc_descr
+  INTO v_descr
+  FROM hrc_tab
+  WHERE hrc_code =10;
+  dbms_output.put_line('The hierarchy description for code 10 is: '||v_descr);
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+  dbms_output.put_line('ERR:Invalid Hierarchy Code 10');
+  WHEN OTHERS THEN
+    dbms_output.put_line('ERR:An error occurred with info :'||
+    TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- An example showing continuing program execution after handling exception
+DECLARE
+  v_descr VARCHAR2(20);
+BEGIN
+  BEGIN
+    SELECT hrc_descr
+    INTO v_descr
+    FROM hrc_tab
+    WHERE hrc_code =10;
+    dbms_output.put_line('The lowest hierarchy available is: Code 10 '||v_descr);
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    INSERT INTO hrc_tab VALUES (10,'Assistant');
+    COMMIT;
+  END;
+  BEGIN
+    SELECT hrc_descr
+    INTO v_descr
+    FROM hrc_tab
+    WHERE hrc_code =1;
+    dbms_output.put_line('The highest hierarchy available is: Code 1 '||
+    v_descr);
+  EXCEPTION WHEN NO_DATA_FOUND THEN
+    dbms_output.put_line('ERR:Invalid Data for Hierarchy');
+  END;
+EXCEPTION
+  WHEN OTHERS THEN
+    dbms_output.put_line('ERR:An error occurred with info :'||
+    TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- Handling user-defined exceptions with a WHEN clause
+BEGIN
+insert into org_tab values
+  (3,1007,'Office of Dir Tech ABC Inc.','Office of Director Tech ABC Inc.');
+COMMIT;
+END;
+/
+DECLARE
+  sites_undefined_for_org EXCEPTION;-- a user-defined exception
+  v_cnt NUMBER;
+BEGIN
+  SELECT COUNT(*)
+  INTO v_cnt
+  FROM org_site_tab
+  WHERE org_id =1007;
+  IF (v_cnt=0)THEN
+    --explicitly raising the user-defined exception
+    RAISE sites_undefined_for_org;
+  END IF;
+EXCEPTION
+  --handling the raised user-defined exception
+  WHEN sites_undefined_for_org THEN
+    dbms_output.put_line('There are no sites defined for organization 1007');
+  WHEN OTHERS THEN
+    dbms_output.pu t_line('ERR:An error occurred with info :'||
+    TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- An example of using PRAGMA EXCEPTION_INIT
+DECLARE
+  invalid_org_level EXCEPTION;
+  PRAGMA EXCEPTION_INIT(invalid_org_level,-2290);
+BEGIN
+  INSERT INTO org_level VALUES (1001,'P');
+  COMMIT;
+EXCEPTION WHEN invalid_org_level THEN
+  dbms_output.put_line(
+  'Organization Level can be only one of '||
+  'C –Corporate,E –Executive,M –Mid-level,L –Lower Level');
+END;
+/
+
+-- An example showing handling of exceptions raised in the 
+-- declaration section
+BEGIN
+  DECLARE
+    v_num NUMBER(2):=100;
+  BEGIN
+    /*......Do some processing */
+    null;
+  EXCEPTION
+    WHEN VALUE_ERROR THEN
+      /*......Handle the error */
+      NULL;
+    WHEN OTHERS THEN
+      dbms_output.put_line('ERR:An error occurred with info :'||
+      TO_CHAR(SQLCODE)||' '||SQLERRM);
+  END;
+EXCEPTION
+  WHEN VALUE_ERROR THEN
+    /*......Handle the error */
+    dbms_output.put_line('Value error occurred');
+  WHEN OTHERS THEN
+    dbms_output.put_line('ERR:An error occurred with info :'||
+    TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- A complete example using RAISE_APPLICATION_ERROR
+CREATE OR REPLACE PROCEDURE org_proc
+			    (p_flag_in VARCHAR2,
+			     p_hrc_code NUMBER,
+			     p_org_id NUMBER,
+			     p_org_short_name VARCHAR2,
+			     p_org_long_name VARCHAR2)
+IS
+  v_error_code NUMBER;
+BEGIN
+  IF (p_flag_in ='I')THEN
+    BEGIN
+      INSERT INTO org_tab VALUES
+      (p_hrc_code,p_org_id,p_org_short_name,p_org_long_name);
+    EXCEPTION WHEN OTHERS THEN
+      v_error_code :=SQLCODE;
+      IF v_error_code =-1 THEN
+        RAISE_APPLICATION_ERROR(-20000,'Organization '||
+        TO_CHAR(p_org_id)||
+        ' already exists. Cannot create a duplicate with the same id.');
+      ELSIF v_error_code =-2291 THEN
+        RAISE_APPLICATION_ERROR(-20001,'Invalid Hierarchy Code '||
+        TO_CHAR(p_hrc_code)||
+        ' specified. Cannot create organization.');
+      END IF;
+    END;
+  ELSIF (p_flag_in ='C')THEN 
+    BEGIN
+      UPDATE org_tab
+      set org_short_name =p_org_short_name,
+      org_long_name =p_org_long_name
+      WHERE hrc_code =p_hrc_code
+      AND org_id =p_org_id;
+      IF SQL%NOTFOUND THEN
+        RAISE_APPLICATION_ERROR(-20002,'Organization '||
+        TO_CHAR(p_org_id)||
+        ' does not exist. Cannot change info for the same.');
+      END IF;
+    END;
+  ELSIF (p_flag_in ='D')THEN
+    BEGIN
+      DELETE org_tab
+      WHERE hrc_code =p_hrc_code
+      AND org_id =p_org_id;
+      IF SQL%NOTFOUND THEN
+        RAISE_APPLICATION_ERROR(-20003,'Organization '||
+        TO_CHAR(p_org_id)||
+        ' does not exist. Cannot delete info for the same.');
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      v_error_code :=SQLCODE;
+      IF v_error_code =-2292 THEN
+        RAISE_APPLICATION_ERROR(-20004,'Organization '||
+        TO_CHAR(p_org_id)||
+        ' site details defined for it. Cannot perform delete operation.');
+      END IF;
+    END;
+  END IF;
+END;
+/
+
+-- Propogating a Server-side Customized Error Number and Error Message to
+-- client program using a WHEN OTHERS handler
+DECLARE
+  v_hrc_code NUMBER := 6;
+  v_org_id NUMBER := 1011;
+  v_org_short_name VARCHAR2(30):= 'Office of Mgr.ABC Inc.';
+  v_org_long_name VARCHAR2(60):= 'Office of Mgr.ABC Inc.';
+BEGIN
+  org_proc('I',v_hrc_code,v_org_id,v_org_short_name,v_org_long_name);
+EXCEPTION WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE(TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- Propogating a Server-side Customized Error Number and Error Message to
+-- client program using PRAGMA EXCEPTION_INIT
+DECLARE
+  v_hrc_code NUMBER := 6;
+  v_org_id NUMBER := 1010;
+  v_org_short_name VARCHAR2(30):= 'Office of Mgr.ABC Inc.';
+  v_org_long_name VARCHAR2(60):= 'Office of Mgr.ABC Inc.';
+  excep1 EXCEPTION;
+  PRAGMA EXCEPTION_INIT(excep1,-20000);
+  excep2 EXCEPTION;
+  PRAGMA EXCEPTION_INIT(excep2,-20001);
+BEGIN
+  org_proc('I',v_hrc_code,v_org_id,v_org_short_name,v_org_long_name);
+EXCEPTION
+  WHEN excep1 or excep2 THEN
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(TO_CHAR(SQLCODE)||SQLERRM);
+END;
+/

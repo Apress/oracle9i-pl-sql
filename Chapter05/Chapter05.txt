@@ -1,0 +1,847 @@
+-- Show_line procedure
+CREATE OR REPLACE PROCEDURE show_line
+			    (ip_line_length IN NUMBER,
+			     ip_separator IN VARCHAR2)
+IS
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..ip_line_length LOOP
+    actual_line :=actual_line ||ip_separator;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE(actual_line);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+END;
+/
+
+-- F_line function
+CREATE OR REPLACE FUNCTION f_line
+			   (ip_line_length IN NUMBER,
+			    ip_separator IN VARCHAR2)
+RETURN VARCHAR2
+IS
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..ip_line_length LOOP
+    actual_line :=actual_line ||ip_separator;
+  END LOOP;
+  RETURN (actual_line);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+  RETURN (null);
+END;
+/
+
+-- Specifying procedure or function parameters
+-- Positional notation
+DECLARE
+  v_length NUMBER :=50;
+  v_separator VARCHAR2(1):='=';
+BEGIN
+  show_line(v_length,v_separator);
+END;
+/
+-- Named notation
+DECLARE
+  v_length NUMBER :=50;
+  v_separator VARCHAR2(1):='=';
+BEGIN
+  show_line(ip_line_length=>v_length,ip_separator=>v_separator);
+END;
+/
+-- Mixed notation
+DECLARE
+  v_length NUMBER :=50;
+  v_separator VARCHAR2(1):='=';
+BEGIN
+  show_line(v_length,ip_separator=>v_separator);
+END;
+/
+
+-- Procedure show_line2
+CREATE OR REPLACE PROCEDURE show_line2
+			    (ip_line_length IN NUMBER,
+			     ip_separator IN VARCHAR2,
+			     op_line OUT VARCHAR2)
+IS
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..ip_line_length LOOP
+    actual_line :=actual_line ||ip_separator;
+  END LOOP;
+  op_line :=actual_line;
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+  op_line :=null;
+END;
+/
+-- Calling show_line2
+DECLARE
+  v_length NUMBER :=50;
+  v_separator VARCHAR2(1):='=';
+  v_line VARCHAR2(150);
+BEGIN
+  show_line2(v_length,v_separator,v_line);
+  dbms_output.put_line(v_line);
+END;
+/
+
+-- Show_line procedure with a default value for one parameter
+CREATE OR REPLACE PROCEDURE show_line
+			    (ip_line_length IN NUMBER,
+			     ip_separator IN VARCHAR2 DEFAULT '=')
+IS
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..ip_line_length LOOP
+    actual_line :=actual_line ||ip_separator;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE(actual_line);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+END;
+/
+
+-- Show_line procedure with a default value for both parameters
+CREATE OR REPLACE PROCEDURE show_line
+			    (ip_line_length IN NUMBER DEFAULT 50,
+     			     ip_separator IN VARCHAR2 DEFAULT '=')
+IS
+  actual_line VARCHAR2(150);
+BEGIN
+  FOR idx in 1..ip_line_length LOOP
+    actual_line :=actual_line ||ip_separator;
+  END LOOP;
+  DBMS_OUTPUT.PUT_LINE(actual_line);
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(SQLERRM);
+END;
+/
+
+-- Package orgMaster
+CREATE OR REPLACE PACKAGE orgMaster
+IS
+  max_sites_for_an_org NUMBER;
+  TYPE rc IS REF CURSOR;
+
+  PROCEDURE createOrg   (ip_hrc_code NUMBER,
+			ip_org_id NUMBER,
+			ip_org_short_name VARCHAR2,
+			ip_org_long_name VARCHAR2,
+			op_retcd OUT NUMBER,
+			op_err_msg OUT VARCHAR2);
+
+  PROCEDURE updateOrg   (ip_org_id NUMBER,
+			ip_org_short_name VARCHAR2,
+			ip_org_long_name VARCHAR2,
+			op_retcd OUT NUMBER,
+			op_err_msg OUT VARCHAR2);
+
+  PROCEDURE removeOrg   (ip_org_id NUMBER,
+			op_retcd OUT NUMBER,
+			op_err_msg OUT VARCHAR2);
+
+  FUNCTION getOrgInfo   (ip_org_id NUMBER) RETURN rc;
+
+  FUNCTION getAllOrgs   (ip_hrc_code NUMBER) RETURN rc;
+
+  PROCEDURE assignSiteToOrg     (ip_org_id NUMBER,
+				ip_site_no NUMBER,
+				op_retcd OUT NUMBER,
+				op_err_msg OUT VARCHAR2);
+
+END orgMaster;
+/
+CREATE OR REPLACE PACKAGE BODY orgMaster
+IS
+  --Procedure to remove rows from org_site_tab table for a given org_id
+  --This is necessary before deleting rows from org_tab.
+  --This procedure is called from removeOrg procedure
+  PROCEDURE removeOrgSites(ip_org_id NUMBER,
+			   op_retcd OUT NUMBER,
+			   op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    DELETE org_site_tab WHERE org_id = ip_org_id;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END removeOrgSites;
+
+  --Procedure to create a new Org record in org_tab
+  PROCEDURE createOrg (ip_hrc_code NUMBER,
+		       ip_org_id NUMBER,
+		       ip_org_short_name VARCHAR2,
+                       ip_org_long_name VARCHAR2,
+                       op_retcd OUT NUMBER,
+                       op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    INSERT INTO org_tab VALUES
+    (ip_hrc_code,ip_org_id,ip_org_short_name,ip_org_long_name);
+    op_retcd :=0;
+  EXCEPTION WHEN DUP_VAL_ON_INDEX THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'already exists.';
+    WHEN OTHERS THEN
+      op_retcd :=SQLCODE;
+      op_err_msg :=SQLERRM;
+  END createOrg;
+
+  --Procedure to update the short and long names of an Org in org_tab
+  --based on input org_id
+  PROCEDURE updateOrg(ip_org_id NUMBER,
+		      ip_org_short_name VARCHAR2,
+		      ip_org_long_name VARCHAR2,
+		      op_retcd OUT NUMBER,
+		      op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    UPDATE org_tab
+    SET org_short_name =ip_org_short_name,
+        org_long_name =ip_org_long_name
+    WHERE org_id =ip_org_id;
+    IF (SQL%NOTFOUND) THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.';
+      RETURN;
+    END IF;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END updateOrg;
+
+  --Procedure to delete a record in org_tab
+  PROCEDURE removeOrg(ip_org_id NUMBER,
+		      op_retcd OUT NUMBER,
+ 		      op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    removeOrgSites(ip_org_id,op_retcd,op_err_msg);
+    IF (op_retcd <>0) then
+      RETURN;
+    END IF;
+    DELETE org_tab WHERE org_id = ip_org_id;
+    IF (SQL%NOTFOUND) THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.';
+      RETURN;
+    END IF;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END removeOrg;
+
+  --Function to return a row in org_tab for a given org_id.
+  --It returns a resultset of type REF CURSOR defined in the package specification
+  FUNCTION getOrgInfo(ip_org_id NUMBER) RETURN rc
+  IS
+    v_rc rc;
+  BEGIN
+    OPEN v_rc FOR SELECT * FROM org_tab WHERE org_id = ip_org_id;
+    RETURN (v_rc);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE_APPLICATION_ERROR(-20001,SQLERRM);
+  END getOrgInfo;
+
+  --Function to return all rows in org_tab.
+  --It returns a resultset of type REF CURSOR defined in the package specification
+  FUNCTION getAllOrgs(ip_hrc_code NUMBER) RETURN rc
+  IS
+    v_rc rc;
+  BEGIN
+    OPEN v_rc FOR SELECT * FROM org_tab WHERE hrc_code = ip_hrc_code;
+    RETURN (v_rc);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE_APPLICATION_ERROR(-20002,SQLERRM);
+  END getAllOrgs;
+
+  --Procedure to insert a row into org_site_tab based on
+  --input org_id and site_no
+  PROCEDURE assignSiteToOrg(ip_org_id NUMBER,
+  			    ip_site_no NUMBER,
+			    op_retcd OUT NUMBER,
+			    op_err_msg OUT VARCHAR2)
+  IS
+    v_num NUMBER;
+  BEGIN
+    BEGIN
+      SELECT 1
+      INTO v_num
+      FROM org_site_tab
+      WHERE org_id = ip_org_id
+      AND site_no = ip_site_no;
+      IF (v_num =1) THEN
+        op_retcd :=0;
+        RETURN;
+      END IF;
+    EXCEPTION WHEN NO_DATA_FOUND THEN
+      INSERT INTO org_site_tab VALUES (ip_org_id,ip_site_no);
+    END;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END assignSiteToOrg;
+
+  --This is the initialization section that is executed
+  --the first time a package sub-program is invoked
+  --or a packaged variable is referenced
+  BEGIN
+    max_sites_for_an_org :=4;
+END orgMaster;
+/
+
+-- Subprograms returning resultsets, function getAllHierarchies
+CREATE OR REPLACE FUNCTION getAllHierarchies
+RETURN SYS_REFCURSOR
+IS
+  v_rc SYS_REFCURSOR;
+BEGIN
+  OPEN v_rc FOR SELECT * FROM hrc_tab;
+  RETURN (v_rc);
+EXCEPTION WHEN OTHERS THEN
+  RAISE_APPLICATION_ERROR(-20002,SQLERRM);
+END;
+/
+
+-- Calling the above function
+DECLARE
+  v_rc SYS_REFCURSOR;
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  v_rc :=getAllHierarchies;
+  LOOP
+    FETCH v_rc INTO hrc_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(TO_CHAR(hrc_rec.hrc_code)||' '||hrc_rec.hrc_descr);
+  END LOOP;
+EXCEPTION WHEN OTHERS THEN
+  dbms_output.put_line(TO_CHAR(SQLCODE)||' '||SQLERRM);
+END;
+/
+
+-- Using stored functions in SQL statements, function f_get_formatted_org_name
+CREATE OR REPLACE FUNCTION f_get_formatted_org_name
+			   (ip_hrc_code NUMBER,
+			    ip_org_id NUMBER)
+RETURN VARCHAR2
+IS
+  v_name VARCHAR2(120);
+BEGIN
+  SELECT 'Org Name: (Short) '||org_short_name||' (Long) '||org_long_name
+  INTO v_name
+  FROM org_tab
+  WHERE hrc_code = ip_hrc_code
+  AND org_id = ip_org_id;
+  RETURN (v_name);
+END f_get_formatted_org_name;
+/
+-- Calling the above function from SQL
+SELECT f_get_formatted_org_name(hrc_code,org_id) "Formatted Org Name"
+FROM org_tab
+ORDER BY hrc_code,org_id;
+
+-- Package rfPkg
+CREATE OR REPLACE PACKAGE rfPkg
+IS
+  FUNCTION f_get_formatted_org_name
+           (ip_hrc_code NUMBER,
+            ip_org_id NUMBER)
+  RETURN VARCHAR2;
+  PRAGMA RESTRICT_REFERENCES(f_get_formatted_org_name,WNDS,WNPS);
+END rfPkg;
+/
+CREATE OR REPLACE PACKAGE BODY rfPkg
+IS
+  FUNCTION f_get_formatted_org_name
+           (ip_hrc_code NUMBER,
+            ip_org_id NUMBER)
+  RETURN VARCHAR2
+  IS
+    v_name VARCHAR2(120);
+  BEGIN
+     SELECT 'Org Name: (Short) '||org_short_name||' (Long) '||org_long_name
+     INTO v_name
+     FROM org_tab
+     WHERE hrc_code = ip_hrc_code
+     AND org_id = ip_org_id;
+     RETURN (v_name);
+  END f_get_formatted_org_name;
+END rfPkg;
+/
+
+-- Calling the above packaged function from SQL
+SELECT rfPkg.f_get_formatted_org_name(hrc_code,org_id) "Formatted Org Name"
+FROM org_tab
+ORDER BY hrc_code,org_id;
+
+-- Package rfPkg2
+CREATE OR REPLACE PACKAGE rfPkg2
+IS
+  FUNCTION f_get_formatted_org_name
+           (ip_hrc_code NUMBER,
+            ip_org_id NUMBER)
+  RETURN VARCHAR2;
+  PRAGMA RESTRICT_REFERENCES(f_get_formatted_org_name,WNDS,WNPS);
+END rfPkg2;
+/
+CREATE OR REPLACE PACKAGE BODY rfPkg2
+IS
+  FUNCTION f_get_formatted_org_name
+           (ip_hrc_code NUMBER,
+            ip_org_id NUMBER)
+  RETURN VARCHAR2
+  IS
+    v_name VARCHAR2(120);
+    v_hrc_descr VARCHAR2(20);
+    v_org_short_name VARCHAR2(30);
+    v_org_long_name VARCHAR2(60);
+  BEGIN
+    SELECT 'Org Name: (Short) '||org_short_name||' (Long) '||org_long_name
+    INTO v_name
+    FROM org_tab
+    WHERE hrc_code = ip_hrc_code
+    AND org_id = ip_org_id;
+    SELECT hrc_descr
+    INTO v_hrc_descr
+    FROM hrc_tab
+    WHERE hrc_code = ip_hrc_code;
+    SELECT org_short_name,org_long_name
+    INTO v_org_short_name,v_org_long_name
+    FROM org_tab
+    WHERE hrc_code = ip_hrc_code
+    AND org_id = ip_org_id;
+    INSERT INTO sec_hrc_org_tab VALUES
+    (ip_hrc_code,v_hrc_descr,ip_org_id,
+     v_org_short_name,v_org_long_name);
+    RETURN (v_name);
+  END f_get_formatted_org_name;
+END rfPkg2;
+/
+
+-- Specifying the TRUST keyword 
+-- Package dirPkg
+CREATE OR REPLACE PACKAGE dirPkg IS
+  FUNCTION FileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2
+  IS LANGUAGE JAVA
+  NAME 'dirClass.fileType(java.lang.String)return java.lang.String';
+  PRAGMA RESTRICT_REFERENCES(FileType,WNDS,TRUST);
+
+  FUNCTION displayFileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2;
+  PRAGMA RESTRICT_REFERENCES(displayFileType,WNDS);
+END dirPkg;
+/
+CREATE OR REPLACE PACKAGE BODY dirPkg IS
+  FUNCTION displayFileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2
+  IS
+    v_descr VARCHAR2(100);
+  BEGIN
+    v_descr :=ip_file_name||' '||'is a '||FileType(ip_file_name);
+    RETURN (v_descr);
+  END displayFileType;
+END dirPkg;
+/
+
+--Package dirPkg2
+CREATE OR REPLACE PACKAGE dirPkg2 IS
+  FUNCTION FileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2
+  IS LANGUAGE JAVA
+  NAME 'dirClass.fileType(java.lang.String)return java.lang.String';
+
+  FUNCTION displayFileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2;
+  PRAGMA RESTRICT_REFERENCES(displayFileType,WNDS,TRUST);
+END dirPkg2;
+/
+CREATE OR REPLACE PACKAGE BODY dirPkg2 IS
+  FUNCTION displayFileType(ip_file_name VARCHAR2)
+  RETURN VARCHAR2
+  IS
+    v_descr VARCHAR2(100);
+  BEGIN
+    v_descr :=ip_file_name||' '||'is a '||FileType(ip_file_name);
+    RETURN (v_descr);
+  END displayFileType;
+END dirPkg2;
+/
+
+-- Parameter passing by reference
+-- Procedure p_nocopy
+CREATE OR REPLACE PROCEDURE p_nocopy
+			    (ip_1 IN NUMBER,
+			     op_2 OUT NOCOPY VARCHAR2)
+IS
+BEGIN
+  NULL;
+END;
+/
+
+-- Performance improvement of NOCOPY
+CREATE OR REPLACE PACKAGE NoCopyPkg
+is
+  type arr is varray(100000)of hrc_tab%ROWTYPE;
+  procedure p1(ip1 IN OUT arr);
+  procedure p2(ip1 IN OUT NOCOPY arr);
+  FUNCTION get_time RETURN NUMBER;
+END NoCopyPkg;
+/
+CREATE OR REPLACE PACKAGE BODY NoCopyPkg
+is
+  PROCEDURE p1(ip1 IN OUT arr)
+  IS
+  BEGIN
+    NULL;
+  END;
+  PROCEDURE p2(ip1 IN OUT NOCOPY arr)
+  IS
+  BEGIN
+    NULL;
+  END;
+  FUNCTION get_time RETURN NUMBER
+  IS
+  BEGIN
+    RETURN (dbms_utility.get_time);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE_APPLICATION_ERROR(-20010,SQLERRM);  
+  END get_time;
+END NoCopyPkg;
+/
+declare
+  arr1 NoCopyPkg.arr :=NoCopyPkg.arr(null);
+  cur_t1 number;
+  cur_t2 number;
+  cur_t3 number;
+begin
+  select * into arr1(1)from hrc_tab where hrc_code =1;
+  /*Create 99999 new elements in the variable array
+    and populate each with the value in the 1st element */
+  arr1.extend(99999,1);
+  cur_t1 :=NoCopyPkg.get_time;
+  NoCopyPkg.p1(arr1);
+  cur_t2 :=NoCopyPkg.get_time;
+  NoCopyPkg.p2(arr1);
+  cur_t3 :=NoCopyPkg.get_time;
+  dbms_output.put_line('Without NOCOPY '||to_char((cur_t2-cur_t1)/100));
+  dbms_output.put_line('With NOCOPY '||to_char((cur_t3-cur_t2)/100));
+end;
+/
+
+-- Invoker Rights Model
+connect system/manager;
+create user region1 identified by region1;
+grant connect,resource to region1;
+create user region2 identified by region2;
+grant connect,resource to region2;
+
+Create or replace Procedure create_dyn_table
+			    (i_region_name VARCHAR2,
+			     retcd OUT NUMBER,
+                             errmsg OUT VARCHAR2)
+authid current_user
+is
+  cur_id INTEGER;
+  ret_code INTEGER;
+  dyn_string VARCHAR2(1000);
+  dyn_Table_name VARCHAR2(21);
+Begin
+  dyn_table_name :='ORDERS_FOR_'||i_region_name;
+  dyn_string :='CREATE TABLE '||dyn_table_name||
+  '(order_id NUMBER(10)PRIMARY KEY,
+    order_date DATE NOT NULL,
+    total_qty NUMBER,
+    total_price NUMBER(15,2))';
+    cur_id :=DBMS_SQL.OPEN_CURSOR;
+    DBMS_SQL.PARSE(cur_id,dyn_string,DBMS_SQL.V7);
+    ret_code :=DBMS_SQL.EXECUTE(cur_id);
+    DBMS_SQL.CLOSE_CURSOR(cur_id);
+    retcd :=0;
+EXCEPTION WHEN OTHERS THEN
+  retcd :=SQLCODE;
+  errmsg :='ERR:Creating table '||dyn_table_name ||'-'||SQLERRM;
+End;
+/
+
+-- Overloading Packaged procedures and functions
+-- Package orgMaster2
+CREATE OR REPLACE PACKAGE orgMaster2
+IS
+max_sites_for_an_org NUMBER;
+TYPE rc IS REF CURSOR;
+PROCEDURE createOrg (ip_hrc_code NUMBER,
+		     ip_org_id NUMBER,
+		     ip_org_short_name VARCHAR2,
+		     ip_org_long_name VARCHAR2,
+		     op_retcd OUT NUMBER,
+		     op_err_msg OUT VARCHAR2);
+PROCEDURE updateOrg(ip_org_id NUMBER,
+		    ip_org_short_name VARCHAR2,
+		    ip_org_long_name VARCHAR2,
+		    op_retcd OUT NUMBER,
+		    op_err_msg OUT VARCHAR2);
+PROCEDURE removeOrg(ip_org_id NUMBER,
+		    op_retcd OUT NUMBER,
+		    op_err_msg OUT VARCHAR2);
+FUNCTION getOrgDetails(ip_hrc_code NUMBER) RETURN rc;
+FUNCTION getOrgDetails(ip_hrc_code NUMBER,ip_org_id NUMBER) RETURN rc;
+PROCEDURE assignSiteToOrg(ip_org_id NUMBER,
+			  ip_site_no NUMBER,
+			  op_retcd OUT NUMBER,
+			  op_err_msg OUT VARCHAR2);
+END orgMaster2;
+/
+CREATE OR REPLACE PACKAGE BODY orgMaster2
+IS
+  --Procedure to delete records from the org_site_tab table
+  --before deleting from org_table.This procedure is called
+  --from the removeOrg procedure
+  PROCEDURE removeOrgSites(ip_org_id NUMBER,
+			   op_retcd OUT NUMBER,
+			   op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    DELETE org_site_tab WHERE org_id =ip_org_id;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END removeOrgSites;
+
+  --Procedure to create a record in the org_tab table
+  PROCEDURE createOrg (ip_hrc_code NUMBER,
+		       ip_org_id NUMBER,
+		       ip_org_short_name VARCHAR2,
+		       ip_org_long_name VARCHAR2,
+		       op_retcd OUT NUMBER,
+		       op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    INSERT INTO org_tab VALUES
+    (ip_hrc_code,ip_org_id,ip_org_short_name,ip_org_long_name);
+    op_retcd :=0;
+  EXCEPTION WHEN DUP_VAL_ON_INDEX THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'already exists.';
+    WHEN OTHERS THEN
+      op_retcd :=SQLCODE;
+      op_err_msg :=SQLERRM;
+  END createOrg;
+
+  --Procedure to update the long and short names for a
+  --given org_id in the org_tab table
+  PROCEDURE updateOrg(ip_org_id NUMBER,
+		      ip_org_short_name VARCHAR2,
+                      ip_org_long_name VARCHAR2,
+                      op_retcd OUT NUMBER,
+		      op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    UPDATE org_tab
+    SET org_short_name =ip_org_short_name,
+        org_long_name =ip_org_long_name
+    WHERE org_id =ip_org_id;
+    IF (SQL%NOTFOUND) THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.';
+      RETURN;
+    END IF;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END updateOrg;
+
+  --Procedure to remove a record from the org_tab table
+  PROCEDURE removeOrg(ip_org_id NUMBER,
+		      op_retcd OUT NUMBER,
+		      op_err_msg OUT VARCHAR2)
+  IS
+  BEGIN
+    removeOrgSites(ip_org_id,op_retcd,op_err_msg);
+    IF (op_retcd <>0) then
+      RETURN;
+    END IF;
+    DELETE org_tab WHERE org_id =ip_org_id;
+    IF (SQL%NOTFOUND) THEN
+      op_retcd :=-1;
+      op_err_msg :='Organization with Id '||TO_CHAR(ip_org_id)||
+      'does not exist.';
+      RETURN;
+    END IF;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END removeOrg;
+
+  --Over-loaded function that returns a row from the org_tab table
+  --based on input hrc_code and org_id
+  FUNCTION getOrgDetails(ip_hrc_code NUMBER,ip_org_id NUMBER)RETURN rc
+  IS
+    v_rc rc;
+  BEGIN
+    OPEN v_rc FOR SELECT * FROM org_tab
+      WHERE hrc_code =ip_hrc_code
+      AND org_id =ip_org_id;
+    RETURN (v_rc);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE_APPLICATION_ERROR(-20001,SQLERRM);
+  END getOrgDetails;
+
+  --Over-loaded function that returns all row from the org_tab table
+  --for an input hrc_code.This function has the same name as the function
+  --above,but the number of parameters is different in each case.
+  FUNCTION getOrgDetails(ip_hrc_code NUMBER)RETURN rc
+  IS
+    v_rc rc;
+  BEGIN
+    OPEN v_rc FOR SELECT * FROM org_tab WHERE hrc_code =ip_hrc_code;
+    RETURN (v_rc);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE_APPLICATION_ERROR(-20002,SQLERRM);
+  END getOrgDetails;
+
+  --Procedure to create a row in the org_site_tab table
+  --based on input org_id and site_no
+  PROCEDURE assignSiteToOrg(ip_org_id NUMBER,
+ 			    ip_site_no NUMBER,
+			    op_retcd OUT NUMBER,
+			    op_err_msg OUT VARCHAR2)
+  IS
+    v_num NUMBER;
+  BEGIN  
+    BEGIN
+      SELECT 1
+      INTO v_num
+      FROM org_site_tab
+      WHERE org_id =ip_org_id
+      AND site_no =ip_site_no;
+      IF (v_num =1) THEN
+        op_retcd :=0;
+        RETURN;
+      END IF;
+    EXCEPTION WHEN NO_DATA_FOUND THEN
+      INSERT INTO org_site_tab VALUES (ip_org_id,ip_site_no);
+    END;
+    op_retcd :=0;
+  EXCEPTION WHEN OTHERS THEN
+    op_retcd :=SQLCODE;
+    op_err_msg :=SQLERRM;
+  END assignSiteToOrg;
+
+  --Initialization section for the package
+  BEGIN
+    max_sites_for_an_org :=4;
+END orgMaster2;
+/
+DECLARE
+  v_rc orgMaster2.rc;
+  org_rec org_tab%ROWTYPE;
+BEGIN
+  DBMS_OUTPUT.PUT_LINE('Org Details for Org 1001');
+  DBMS_OUTPUT.PUT_LINE('------------------');
+  v_rc :=orgMaster2.getOrgDetails(1,1001);
+  FETCH v_rc INTO org_rec;
+  DBMS_OUTPUT.PUT_LINE(TO_CHAR(org_rec.hrc_code)||' '||
+  TO_CHAR(org_rec.org_id)||''||
+  org_rec.org_short_name||' '||
+  org_rec.org_long_name);
+  DBMS_OUTPUT.PUT_LINE('Org Details for Hierarchy 1');
+  DBMS_OUTPUT.PUT_LINE('------------------');
+  v_rc :=orgMaster2.getOrgDetails(1);
+  LOOP
+    FETCH v_rc INTO org_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    DBMS_OUTPUT.PUT_LINE(TO_CHAR(org_rec.hrc_code)||' '||
+    TO_CHAR(org_rec.org_id)||' '||
+    org_rec.org_short_name||' '||
+    org_rec.org_long_name);
+  END LOOP;
+  CLOSE v_rc;
+END;
+/
+
+-- Serially Reusable Packages
+-- Package srPkg1
+CREATE OR REPLACE PACKAGE srPkg1
+IS
+  PRAGMA SERIALLY_REUSABLE;
+  num_var NUMBER;
+  char_var VARCHAR2(20);
+  PROCEDURE initialize;
+  FUNCTION display_num RETURN NUMBER;
+  FUNCTION display_char RETURN VARCHAR2;
+END srPkg1;
+/
+CREATE OR REPLACE PACKAGE BODY srPkg1
+IS
+  PRAGMA SERIALLY_REUSABLE;
+  PROCEDURE initialize
+  IS
+  BEGIN
+    num_var :=100;
+    char_var :='Test String1';
+  END;
+  FUNCTION display_num RETURN NUMBER
+  IS
+  BEGIN
+    RETURN (num_var);
+  END;
+  FUNCTION display_char RETURN VARCHAR2
+  IS
+  BEGIN
+    RETURN (char_var);
+  END;
+END srPkg1;
+/
+DECLARE
+  v_num NUMBER;
+  v_char VARCHAR2(20);
+BEGIN
+  srPkg1.initialize;
+  v_num :=srPkg1.display_num;
+  v_char :=srPkg1.display_char;
+  dbms_output.put_line(TO_CHAR(v_num)||' '||v_char);
+END;
+/
+CREATE OR REPLACE PACKAGE srPkg2
+IS
+  PRAGMA SERIALLY_REUSABLE; 
+  CURSOR csr_sites IS
+    SELECT * from site_tab ORDER BY site_no;
+  PROCEDURE displaySites;
+END srPkg2;
+/
+CREATE OR REPLACE PACKAGE BODY srPkg2
+IS
+  PRAGMA SERIALLY_REUSABLE;
+  PROCEDURE displaySites
+  IS
+    site_rec site_tab%ROWTYPE;
+  BEGIN
+    OPEN csr_sites;
+    FETCH csr_sites INTO site_rec;
+    dbms_output.put_line(TO_CHAR(site_rec.site_no)||' '||
+    site_rec.site_descr);
+    FETCH csr_sites INTO site_rec;
+    dbms_output.put_line(TO_CHAR(site_rec.site_no)||' '||
+    site_rec.site_descr);
+  END displaySites;
+END srPkg2;
+/
+BEGIN
+  srPkg2.displaySites;
+END;
+/

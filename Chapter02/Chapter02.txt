@@ -1,0 +1,755 @@
+-- An example of an explicit cursor
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_hrc_descr VARCHAR2(20);
+  v_org_short_name VARCHAR2(30);
+BEGIN
+  /*...<Process the cursor resultset>...*/
+  null;
+END;
+/
+
+-- An example of opening the csr_org cursor
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_hrc_descr VARCHAR2(20);  
+  v_org_short_name VARCHAR2(30);
+BEGIN
+  OPEN csr_org;
+  /*...<Process the cursor resultset>...*/
+  null;
+END;
+/
+
+-- An example of csr_org to fetching rows
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h  
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_hrc_descr VARCHAR2(20);
+  v_org_short_name VARCHAR2(30);
+BEGIN
+  OPEN csr_org;
+  FETCH csr_org INTO v_hrc_descr,v_org_short_name;
+  --This fetch fetches the first row in the active set.
+  null;
+END;
+/
+
+-- An example of using cursor_name%RWOTYPE
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN
+  OPEN csr_org;
+  FETCH csr_org INTO v_org_rec;
+  --This fetch fetches the first row in the active set.
+  null;
+END;
+/
+
+-- A complete example of using the csr_org cursor
+DECLARE
+  /*Declare a cursor explicitly */
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN
+  /*Open the cursor */
+  OPEN csr_org;
+  /*Format headings */
+  dbms_output.put_line('Organization Details with Hierarchy');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  /*Fetch from the cursor resultset in a loop and display the results
+  */
+  LOOP
+    FETCH csr_org INTO v_org_rec;
+    EXIT WHEN csr_org%NOTFOUND;
+    dbms_output.put_line(rpad(v_org_rec.hrc_descr,20,' ')||' '||
+    rpad(v_org_rec.org_short_name,30,' '));
+  END LOOP;
+  /*CLose the cursor */
+  CLOSE csr_org;
+END;
+/
+
+-- A complete example of using the csr_org cursor
+-- using a WHILE LOOP
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN
+  OPEN csr_org;
+  dbms_output.put_line('Organization Details with Hierarchy');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FETCH csr_org INTO v_org_rec;
+  WHILE (csr_org%FOUND) LOOP
+    dbms_output.put_line(rpad(v_org_rec.hrc_descr,20,' ')||' '||
+    rpad(v_org_rec.org_short_name,30,' '));
+    FETCH csr_org INTO v_org_rec;
+  END LOOP;
+  CLOSE csr_org;
+END;
+/
+
+-- A complete example if uisng the csr_org cursor 
+-- using a cursor FOR LOOP
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+BEGIN
+  dbms_output.put_line('Organization Details with Hierarchy');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FOR idx IN csr_org LOOP
+    dbms_output.put_line(rpad(idx.hrc_descr,20,' ')||' '||
+    rpad(idx.org_short_name,30,' '));
+  END LOOP;
+END;
+/
+
+-- An example of csr_org cursor using %ISOPEN 
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN 
+  IF (NOT csr_org%ISOPEN) THEN
+    OPEN csr_org;
+  END IF;
+  dbms_output.put_line('Organization Details with Hierarchy');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FETCH csr_org INTO v_org_rec;
+  WHILE (csr_org%FOUND)LOOP
+    dbms_output.put_line(rpad(v_org_rec.hrc_descr,20,' ')||' '||
+    rpad(v_org_rec.org_short_name,30,' '));
+    FETCH csr_org INTO v_org_rec;
+  END LOOP;
+  IF (csr_org%ISOPEN)THEN
+    CLOSE csr_org;
+  END IF;
+END;
+/
+
+-- An example of csr_org cursor using %ROWCOUNT
+DECLARE
+  CURSOR csr_org IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    ORDER by 2;
+  num_total_rows NUMBER;
+BEGIN
+  dbms_output.put_line('Organization Details with Hierarchy');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FOR idx IN csr_org LOOP
+    dbms_output.put_line(rpad(idx.hrc_descr,20,' ')||' '||
+    rpad(idx.org_short_name,30,' '));
+    num_total_rows :=csr_org%ROWCOUNT;
+  END LOOP;
+  IF num_total_rows >0 THEN
+    dbms_output.new_line;
+    dbms_output.put_line('Total Organizations = '||to_char(num_total_rows));
+  END IF;
+END;
+/
+
+-- An examplre of csr_org cursor using %ROWCOUNT
+-- as an incremental rowcount
+DECLARE
+CURSOR csr_org IS
+  SELECT h.hrc_descr,o.org_short_name
+  FROM org_tab o,hrc_tab h
+  WHERE o.hrc_code =h.hrc_code
+  ORDER by 2;
+  num_total_rows NUMBER;
+BEGIN
+  FOR idx IN csr_org LOOP
+    IF csr_org%ROWCOUNT =1 THEN
+      dbms_output.put_line('Organization Details with Hierarchy');
+      dbms_output.put_line('------------------------');
+      dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+      rpad('Organization',30,' '));
+      dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+    END IF;
+    dbms_output.put_line(rpad(idx.hrc_descr,20,' ')||' '||
+    rpad(idx.org_short_name,30,' '));
+    num_total_rows :=csr_org%ROWCOUNT;
+  END LOOP;
+  IF num_total_rows >0 THEN
+    dbms_output.new_line;
+    dbms_output.put_line('Total Organizations = '||to_char(num_total_rows));
+  END IF;
+END;
+/
+
+-- An example to illustrate parameterized cursors
+DECLARE
+  CURSOR csr_org(p_hrc_code NUMBER) IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =p_hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN
+  OPEN csr_org(1);
+  dbms_output.put_line('Organization Details with Hierarchy 1');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  LOOP
+    FETCH csr_org INTO v_org_rec;
+    EXIT WHEN csr_org%NOTFOUND;
+    dbms_output.put_line(rpad(v_org_rec.hrc_descr,20,' ')||' '||
+    rpad(v_org_rec.org_short_name,30,' '));
+  END LOOP;
+  CLOSE csr_org;
+  OPEN csr_org(2);
+  dbms_output.put_line('Organization Details with Hierarchy 2');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  LOOP
+    FETCH csr_org INTO v_org_rec;
+    EXIT WHEN csr_org%NOTFOUND;
+    dbms_output.put_line(rpad(v_org_rec.hrc_descr,20,' ')||' '||
+    rpad(v_org_rec.org_short_name,30,' '));
+  END LOOP;
+  CLOSE csr_org;
+END;
+/
+
+-- An example of parameterized cursor using cursor FOR LOOP
+DECLARE
+  CURSOR csr_org(p_hrc_code NUMBER) IS
+    SELECT h.hrc_descr,o.org_short_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =p_hrc_code
+    ORDER by 2;
+  v_org_rec csr_org%ROWTYPE;
+BEGIN
+  dbms_output.put_line('Organization Details with Hierarchy 1');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||
+  ''||rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FOR idx in csr_org(1) LOOP
+    dbms_output.put_line(rpad(idx.hrc_descr,20,' ')||' '||
+    rpad(idx.org_short_name,30,' '));
+  END LOOP;
+  dbms_output.put_line('Organization Details with Hierarchy 2');
+  dbms_output.put_line('------------------------');;
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Organization',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  FOR idx in csr_org(2) LOOP
+    dbms_output.put_line(rpad(idx.hrc_descr,20,' ')||' '||
+    rpad(idx.org_short_name,30,' '));
+  END LOOP;
+END;
+/
+
+-- A complete example of using SELECT FOR UPDATE cursors
+BEGIN 
+  INSERT INTO sec_hrc_tab
+    SELECT *FROM hrc_tab;
+  COMMIT;
+END;
+/
+DECLARE
+  CURSOR csr_1 IS
+    SELECT * FROM sec_hrc_tab FOR UPDATE OF hrc_descr;
+  v_hrc_descr VARCHAR2(20);
+BEGIN
+  FOR idx IN csr_1 LOOP
+    v_hrc_descr :=UPPER(idx.hrc_descr);
+    UPDATE sec_hrc_tab
+    SET hrc_descr =v_hrc_descr
+    WHERE CURRENT OF csr_1;
+  END LOOP;
+  COMMIT;
+END;
+/
+
+-- An example of an implicit cursor
+BEGIN
+  DELETE sec_hrc_org_tab WHERE hrc_code =1;
+  INSERT INTO sec_hrc_org_tab
+    SELECT h.hrc_code,h.hrc_descr,
+           o.org_id,o.org_short_name,o.org_long_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =1;
+  IF (SQL%FOUND)THEN
+    dbms_output.put_line(TO_CHAR(SQL%ROWCOUNT)||
+    'rows inserted into secondary table for hierarchy 1');
+  END IF;
+  COMMIT;
+END;
+/
+
+-- An example of using SQL%NOTFOUND
+DECLARE
+  v_num_rows NUMBER;
+BEGIN
+  DELETE sec_hrc_org_tab WHERE hrc_code =1;
+  INSERT INTO sec_hrc_org_tab
+    SELECT h.hrc_code,h.hrc_descr,
+           o.org_id,o.org_short_name,o.org_long_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =1;
+  v_num_rows :=SQL%ROWCOUNT;
+  IF (SQL%FOUND)THEN
+    UPDATE sec_hrc_audit
+    SET num_rows =v_num_rows
+    WHERE hrc_code =1;
+    IF (SQL%NOTFOUND)THEN
+      INSERT INTO sec_hrc_audit(hrc_code,num_rows)VALUES (1,v_num_rows);
+    END IF;
+  END IF;
+  COMMIT;
+END;
+/
+
+-- An example of using SQL%ROWCOUNT
+DECLARE
+  v_num_rows NUMBER;
+BEGIN
+  DELETE sec_hrc_org_tab WHERE hrc_code =1;
+  INSERT INTO sec_hrc_org_tab
+    SELECT h.hrc_code,h.hrc_descr,
+           o.org_id,o.org_short_name,o.org_long_name
+    FROM org_tab o,hrc_tab h
+    WHERE o.hrc_code =h.hrc_code
+    AND h.hrc_code =1;
+  v_num_rows :=SQL%ROWCOUNT;
+  IF (SQL%FOUND)THEN
+    UPDATE sec_hrc_audit
+    SET num_rows =v_num_rows
+    WHERE hrc_code =1;
+    IF (SQL%ROWCOUNT=0)THEN
+      INSERT INTO sec_hrc_audit(hrc_code,num_rows)VALUES (1,v_num_rows);
+    END IF;
+  END IF;
+  COMMIT;
+END;
+/
+
+-- An example of opening a cursor variable
+DECLARE
+  TYPE rc is REF CURSOR;
+  v_rc rc;
+BEGIN
+  OPEN v_rc FOR SELECT *from hrc_tab;
+  /*...FETCH the results and process the resultset */
+  null;
+END;
+/
+
+-- An example of fetching from a cursor variable
+DECLARE
+  TYPE rc is REF CURSOR;
+  v_rc rc;
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  OPEN v_rc FOR SELECT *from hrc_tab;
+  LOOP
+    FETCH v_rc INTO hrc_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    /*...Process the individual records */
+    null;
+  END LOOP;
+END;
+/
+
+-- A complete example of using a cursor variable
+DECLARE
+  TYPE rc is REF CURSOR;
+  v_rc rc;
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  OPEN v_rc FOR SELECT *from hrc_tab;
+  dbms_output.put_line('Hierarchy Details');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line('Code'||' '||rpad('Description',20,' '));
+  dbms_output.put_line(rpad('-',4,'-')||' '||rpad('-',20,'-'));
+  LOOP
+    FETCH v_rc INTO hrc_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||
+    rpad(hrc_rec.hrc_descr,20,' '));
+  END LOOP;
+  CLOSE v_rc;
+END;
+/
+
+-- An example of cursor variable assignment
+DECLARE
+  TYPE rc is REF CURSOR;
+  v_rc1 rc;
+  v_rc2 rc;
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  OPEN v_rc1 FOR SELECT *from hrc_tab;
+  dbms_output.put_line('Hierarchy Details');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line('Code'||' '||rpad('Description',20,' '));
+  dbms_output.put_line(rpad('-',4,'-')||' '||rpad('-',20,'-'));
+  /*Assign v_rc1 to v_rc2 */
+  v_rc2 :=v_rc1;
+  LOOP
+    /*Fetch from the second cursor variable,i.e.,v_rc2 */
+    FETCH v_rc2 INTO hrc_rec;
+    EXIT WHEN v_rc2%NOTFOUND;
+    dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||
+    rpad(hrc_rec.hrc_descr,20,' '));
+  END LOOP;
+  CLOSE v_rc2;
+END;
+/
+
+-- An example of using SYS_REFCURSOR for
+-- cursor variable processing
+DECLARE
+  v_rc SYS_REFCURSOR;
+  hrc_rec hrc_tab%ROWTYPE;
+BEGIN
+  OPEN v_rc FOR SELECT *from hrc_tab;
+  dbms_output.put_line('Hierarchy Details');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line('Code'||' '||rpad('Description',20,' '));
+  dbms_output.put_line(rpad('-',4,'-')||' '||rpad('-',20,'-'));
+  LOOP
+    FETCH v_rc INTO hrc_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||
+    rpad(hrc_rec.hrc_descr,20,' '));
+  END LOOP;
+  CLOSE v_rc;
+END;
+/
+
+-- Opening multiple queries using the same cursor variable
+DECLARE
+  TYPE rc is REF CURSOR;
+  v_rc rc;
+  hrc_rec hrc_tab%ROWTYPE;
+  v_hrc_descr VARCHAR2(20);
+  v_org_short_name VARCHAR2(30);
+BEGIN
+  OPEN v_rc FOR SELECT *from hrc_tab;
+  dbms_output.put_line('Hierarchy Details');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line('Code'||' '||rpad('Description ',20,' '));
+  dbms_output.put_line(rpad('-',4,'-')||' '||rpad('-',20,'-'));
+  LOOP
+    FETCH v_rc INTO hrc_rec;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(to_char(hrc_rec.hrc_code)||' '||
+    rpad(hrc_rec.hrc_descr,20,' '));
+  END LOOP;
+  OPEN v_rc FOR SELECT h.hrc_descr,o.org_short_name
+                FROM org_tab o,hrc_tab h
+                WHERE o.hrc_code =h.hrc_code;
+  dbms_output.put_line('Hierarchy and Organization Details');
+  dbms_output.put_line('------------------------');
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Description',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  LOOP
+    FETCH v_rc INTO v_hrc_descr,v_org_short_name;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(rpad(v_hrc_descr,20,' ')||' '||
+    rpad(v_org_short_name,30,' '));
+  END LOOP;
+  CLOSE v_rc;
+END;
+/
+
+-- Assigning different queries to the same cursor variable
+CREATE OR REPLACE PROCEDURE p_print_report(p_report_no NUMBER,p_title VARCHAR2)
+IS
+  TYPE rc IS REF CURSOR;
+  v_rc rc;
+  v_hrc_descr VARCHAR2(20);
+  v_org_short_name VARCHAR2(30);
+BEGIN 
+  IF (p_report_no =1)THEN
+    OPEN v_rc FOR SELECT h.hrc_descr,o.org_short_name
+                  FROM org_tab o,hrc_tab h
+                  WHERE o.hrc_code =h.hrc_code
+                  AND 1 < (SELECT count(os.site_no)
+                           FROM org_site_tab os
+                           WHERE os.org_id =o.org_id);
+  ELSIF (p_report_no =2)THEN
+    OPEN v_rc FOR SELECT h.hrc_descr,o.org_short_name
+                  FROM org_tab o,hrc_tab h
+                  WHERE o.hrc_code =h.hrc_code
+                  AND NOT EXISTS
+                      (SELECT *
+                       FROM org_tab o1
+                       WHERE o1.org_id =o.org_id
+                       AND o1.hrc_code =2 );
+  END IF;
+  dbms_output.put_line(p_title);
+  dbms_output.put_line(rpad('-',length(p_title),'-'));
+  dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+  rpad('Description',30,' '));
+  dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+  LOOP 
+    FETCH v_rc INTO v_hrc_descr,v_org_short_name;
+    EXIT WHEN v_rc%NOTFOUND;
+    dbms_output.put_line(rpad(v_hrc_descr,20,' ')||' '||
+    rpad(v_org_short_name,30,' '));
+  END LOOP;
+  CLOSE v_rc;
+END p_print_report;
+/
+
+-- A PL/SQL function that uses a cursor expression
+create or replace function f_cursor_exp return NUMBER
+is
+  TYPE rc is REF CURSOR;
+  /*declare the cursor expression */
+  CURSOR csr_hierarchy IS
+    SELECT h.hrc_descr,
+      CURSOR(SELECT o.org_long_name
+             FROM org_tab o
+             WHERE o.hrc_code =h.hrc_code)long_name
+    FROM hrc_tab h;
+  /*Declare a REF CURSOR variable to hold the nested cursor resultset
+    while fetching.*/
+  hrc_rec rc;
+  v_hrc_descr VARCHAR2(20);
+  v_org_long_name VARCHAR2(60);
+BEGIN
+  /*Open the parent cursor */
+  OPEN csr_hierarchy;
+  LOOP
+    /*fetch the column csr_hierarchy.hrc_descr,
+      then loop through the resultset of the nested cursor.*/
+    FETCH csr_hierarchy INTO v_hrc_descr,hrc_rec;
+    EXIT WHEN csr_hierarchy%notfound;
+    /*Use a nested loop that fetches from the nested cursor
+      within the parent rows.*/
+    LOOP
+      --Directly fetch from the nested cursor,there is no need to open it.
+      FETCH hrc_rec INTO v_org_long_name;
+      EXIT WHEN hrc_rec%notfound;
+      DBMS_OUTPUT.PUT_LINE(v_hrc_descr ||''||v_org_long_name);
+    END LOOP;
+  END LOOP;
+  /*Close the parent cursor.No need to close the nested cursor.*/
+  close csr_hierarchy;
+  RETURN (0);
+EXCEPTION WHEN OTHERS THEN
+  RETURN (SQLCODE);
+END;
+/
+
+-- Cursor expressions using multiple levels of nested cursors
+create or replace function f_cursor_exp_complex return NUMBER
+is
+  TYPE rc is REF CURSOR;
+  /*declare the cursor expression */
+  CURSOR csr_hierarchy IS
+    SELECT h.hrc_descr,
+      CURSOR(SELECT o.org_long_name,
+        CURSOR (SELECT s.site_descr
+                FROM org_site_tab os,site_tab s
+                WHERE os.site_no =s.site_no
+                AND os.org_id =o.org_id)as site_name
+             FROM org_tab o
+             WHERE o.hrc_code =h.hrc_code)long_name
+    FROM hrc_tab h;
+  /*Declare two REF CURSOR variables to hold the nested cursor resultset
+    while fetching.*/
+  hrc_rec rc;
+  org_rec rc;
+  v_hrc_descr VARCHAR2(20);
+  v_org_long_name VARCHAR2(60);
+  v_site_name VARCHAR2(20);
+BEGIN
+  /*Open the parent cursor */
+  OPEN csr_hierarchy;
+  LOOP
+    /*fetch the column csr_hierarchy.hrc_descr,
+      then loop through the resultset of the nested cursors.*/
+    FETCH csr_hierarchy INTO v_hrc_descr,hrc_rec;
+    EXIT WHEN csr_hierarchy%notfound;
+    LOOP
+      /*Use a nested loop that fetches from the first nested cursor
+        within the parent rows */
+      FETCH hrc_rec INTO v_org_long_name,org_rec;
+      EXIT WHEN hrc_rec%notfound;
+      LOOP
+        --Directly fetch from the second nested cursor,there is no need to open it
+        FETCH org_rec INTO v_site_name;
+        EXIT WHEN org_rec%notfound;
+        DBMS_OUTPUT.PUT_LINE(v_hrc_descr ||''||v_org_long_name||''||
+        v_site_name);
+      END LOOP;
+    END LOOP;
+  END LOOP;
+  /*Close the parent cursor.No need to close the nested cursor.*/
+  close csr_hierarchy;
+  RETURN (0);
+EXCEPTION WHEN OTHERS THEN
+  RETURN (SQLCODE);
+END;
+/
+
+-- Cursor expressions as arguments to functions called from SQL
+CREATE OR REPLACE FUNCTION f_report(p_cursor SYS_REFCURSOR,p_title VARCHAR2)
+RETURN NUMBER
+IS
+  v_hrc_descr VARCHAR2(20);
+  v_org_short_name VARCHAR2(30);
+  v_ret_code NUMBER;
+BEGIN
+  BEGIN
+    dbms_output.put_line(p_title);
+    dbms_output.put_line(rpad('Hierarchy',20,' ')||' '||
+    rpad('Organization',30,' '));
+    dbms_output.put_line(rpad('-',20,'-')||' '||rpad('-',30,'-'));
+    LOOP
+      FETCH p_cursor INTO v_hrc_descr,v_org_short_name;
+      EXIT WHEN p_cursor%NOTFOUND;
+      dbms_output.put_line(rpad(v_hrc_descr,20,' ')||' '||
+      rpad(v_org_short_name,30,' '));
+    END LOOP;
+    v_ret_code :=1;
+  EXCEPTION WHEN OTHERS THEN
+    v_ret_code :=SQLCODE;
+  END;
+  RETURN (v_ret_code);
+END;
+/
+CREATE OR REPLACE PROCEDURE flush
+IS
+BEGIN
+  NULL;
+END;
+/
+SELECT 'Report Generated on '||TO_CHAR(SYSDATE,'MM/DD/YYYY ') "Report1"
+FROM DUAL
+WHERE f_report(
+        CURSOR(SELECT h.hrc_descr,o.org_short_name
+               FROM hrc_tab h,org_tab o
+               WHERE o.hrc_code =h.hrc_code
+               AND 1 < (SELECT count(os.site_no)
+                        FROM org_site_tab os
+                        WHERE os.org_id =o.org_id)
+              ),
+        'List of Organizations located in more than one site'
+)=1;
+SELECT 'Report Generated on '||TO_CHAR(SYSDATE,'MM/DD/YYYY ') "Report2"
+FROM DUAL
+WHERE f_report(
+        CURSOR(SELECT h.hrc_descr,o.org_short_name
+               FROM hrc_tab h,org_tab o
+               WHERE o.hrc_code =h.hrc_code
+               AND NOT EXISTS (SELECT *
+                               FROM org_tab o1
+                               WHERE o1.org_id =o.org_id
+                               AND o1.hrc_code = 2
+                              )
+              ),'List of Organizations not having a VP'
+)=1;
+CREATE OR REPLACE FUNCTION f_cursor(p_cursor SYS_REFCURSOR)
+RETURN NUMBER
+IS
+  v_org_short_name VARCHAR2(30);
+  v_cnt NUMBER :=0;
+  v_ret_code NUMBER;
+BEGIN
+  BEGIN
+    LOOP
+      FETCH p_cursor INTO v_org_short_name;
+      EXIT WHEN p_cursor%NOTFOUND;
+      v_cnt :=v_cnt +1;
+    END LOOP;
+    IF (v_cnt >0)THEN
+      v_ret_code :=1;
+    ELSE
+      v_ret_code :=0;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    v_ret_code :=SQLCODE;
+  END;
+  RETURN (v_ret_code);
+END;
+/
+SELECT rpad(h.hrc_descr,20,' ') "Hierarchy", 
+       rpad(o.org_short_name,30,' ') "Organization"
+FROM hrc_tab h,org_tab o
+WHERE h.hrc_code =o.hrc_code
+AND f_cursor(
+      CURSOR(SELECT o1.org_short_name
+             FROM org_tab o1
+             WHERE o1.org_id =o.org_id
+             AND 1 < (SELECT count(os.site_no)
+                      FROM org_site_tab os
+                      WHERE os.org_id =o1.org_id)
+            )
+)=1;
+SELECT rpad(h.hrc_descr,20,' ') "Hierarchy",
+       rpad(o.org_short_name,30,' ') "Organization"
+FROM hrc_tab h,org_tab o
+WHERE h.hrc_code =o.hrc_code
+AND f_cursor(
+      CURSOR(SELECT o1.org_short_name
+             FROM org_tab o1
+             WHERE o1.org_id =o.org_id
+             AND NOT EXISTS (SELECT *
+                             FROM org_tab o2
+                             WHERE o2.org_id =o1.org_id
+                             AND o2.hrc_code =2)
+            )
+)=1;

@@ -1,0 +1,267 @@
+-- BLOBS
+CREATE TABLE blob_tab
+(id NUMBER PRIMARY KEY,
+ blob_data BLOB);
+
+INSERT INTO blob_tab VALUES (1,null);
+
+UPDATE blob_tab
+SET blob_data =EMPTY_BLOB()
+WHERE id =1;
+
+INSERT INTO blob_tab VALUES (2,HEXTORAW('ABCDEFABCDEFABCDEF'));
+
+DECLARE
+  v_blob BLOB;
+BEGIN
+  INSERT INTO blob_tab VALUES (3,HEXTORAW('ABCDEFABCDEFABCDEF'));
+  SELECT blob_data
+  INTO v_blob
+  FROM blob_tab
+  WHERE id =3;
+  /*...Use this blob locator to populate the BLOB with large binary data.*/
+END;
+/
+DECLARE
+  v_blob BLOB;
+BEGIN
+  INSERT INTO blob_tab VALUES (4,HEXTORAW('ABCDEFABCDEFABCDEF'))
+  RETURNING blob_data INTO v_blob;
+  /*...Use this blob locator to populate the BLOB with large binary data.*/
+END;
+/
+
+-- CLOBS
+CREATE TABLE clob_tab
+(id NUMBER PRIMARY KEY,
+ clob_data CLOB);
+
+INSERT INTO clob_tab VALUES (101,null);
+
+UPDATE clob_tab
+SET clob_data =EMPTY_CLOB()
+WHERE id =101;
+
+INSERT INTO clob_tab VALUES (102,RPAD('ABCDEFABCDEFABCDEF',40000,'A'));
+
+DECLARE
+  v_clob CLOB;
+BEGIN
+  INSERT INTO clob_tab VALUES (103,EMPTY_CLOB());
+  SELECT clob_data
+  INTO v_clob
+  FROM clob_tab
+  WHERE id =103;
+  /*...Use this clob locator to populate the CLOB with large character data.*/
+END;
+/
+DECLARE
+  v_clob CLOB;
+BEGIN
+  INSERT INTO clob_tab VALUES (104,EMPTY_CLOB())
+  RETURNING clob_data INTO v_clob;
+  /*...Use this clob locator to populate the CLOB with large character data.*/
+END;
+/
+
+-- BFILES
+CREATE TABLE bfile_tab
+(id NUMBER PRIMARY KEY,
+ bfile_data BFILE);
+
+INSERT INTO bfile_tab VALUES (201,null);
+
+INSERT INTO bfile_tab VALUES (202,BFILENAME('BFILE_DIR','test.bmp'));
+
+CREATE DIRECTORY bfile_dir AS 'c:\proj';
+GRANT READ ON DIRECTORY BFILE_DIR TO PLSQL9I;
+
+DECLARE
+  v_bfile BFILE;
+BEGIN
+  INSERT INTO bfile_tab VALUES (203,BFILENAME('BFILE_DIR','test.bmp'));
+  SELECT bfile_data
+  INTO v_bfile
+  FROM bfile_tab
+  WHERE id =203;
+  /*...Use this bfile locator to read the BFILE */
+END;
+/
+
+DECLARE
+  v_bfile BFILE;
+BEGIN
+  INSERT INTO bfile_tab VALUES (204,BFILENAME('BFILE_DIR','test.bmp'))
+  RETURNING bfile_data INTO v_bfile;
+  /*...Use this bfile locator to read the BFILE */
+END;
+/
+
+-- DBMS_LOB Package
+-- Populating a BLOB column from an external BFILE
+DECLARE
+  bfile_loc BFILE;
+  blob_loc BLOB;
+  bfile_offset NUMBER :=1;
+  blob_offset NUMBER :=1;
+  tot_len INTEGER;
+BEGIN
+  --First INSERT a row with an empty blob
+  INSERT INTO blob_tab VALUES (5,EMPTY_BLOB());
+  COMMIT;
+  --SELECT the blob locator FOR UPDATE
+  SELECT blob_data INTO blob_loc FROM blob_tab
+  WHERE id =5 FOR UPDATE;
+  --Obtain the BFILE locator
+  bfile_loc :=bfilename('BFILE_DIR','test.bmp');
+  --Open the input BFILE */
+  dbms_lob.fileopen(bfile_loc,dbms_lob.file_readonly);
+  --Open the BLOB
+  dbms_lob.OPEN(blob_loc,dbms_lob.lob_readwrite);
+  --Populate the blob with the whole bfile data
+  dbms_lob.LOADBLOBFROMFILE(blob_loc,bfile_loc,dbms_lob.lobmaxsize,bfile_offset,
+  blob_offset);
+  --Obtain length of the populated BLOB
+  tot_len :=DBMS_LOB.GETLENGTH(blob_loc);
+  --Close the BLOB
+  dbms_lob.close(blob_loc);
+  --Close the BFILE
+  dbms_lob.fileclose(bfile_loc);
+  COMMIT;
+  --Display the length of the BLOB
+  DBMS_OUTPUT.PUT_LINE('The length of the BLOB after population is: '||
+  TO_CHAR(tot_len));
+END;
+/
+
+-- Reading and Writing to a CLOB
+declare
+  clob_loc CLOB;
+  v_buf VARCHAR2(1000);
+  Amount BINARY_INTEGER :=1000;
+  Position INTEGER :=1;
+BEGIN
+  v_buf :=rpad('A',1000,'A');
+  insert into clob_tab values (5,EMPTY_CLOB());
+  commit;
+  SELECT clob_data INTO clob_loc
+  FROM clob_tab
+  WHERE id =5 FOR UPDATE;
+  DBMS_LOB.OPEN (clob_loc,DBMS_LOB.LOB_READWRITE);
+  FOR i IN 1..500 LOOP
+    DBMS_LOB.WRITE (clob_loc,Amount,Position,v_buf);
+    Position :=Position +Amount;
+  END LOOP;
+  DBMS_LOB.CLOSE (clob_loc);
+END;
+/
+DECLARE
+  clob_loc CLOB;
+  v_Buf VARCHAR2(1000);
+  Amount BINARY_INTEGER :=1000;
+  Position INTEGER :=1;
+  fp UTL_FILE.FILE_TYPE;
+BEGIN
+  --Select the CLOB locator for row with id 5 in clob_tab table
+  SELECT clob_data INTO clob_loc
+  FROM clob_tab WHERE id =5;
+  --Open the CLOB
+  if (DBMS_LOB.ISOPEN(clob_loc)!=1) then
+    DBMS_LOB.OPEN (clob_loc,DBMS_LOB.LOB_READONLY);
+  end if;
+  --Open the output file for writing
+  fp :=UTL_FILE.FOPEN('BFILE_DIR','output.dat','w');
+  --Read from the CLOB in chunks of 1000 characters and write to the output file
+  LOOP 
+    BEGIN
+      DBMS_LOB.READ (clob_loc,Amount,Position,v_Buf);
+      UTL_FILE.PUT_LINE(fp,v_Buf,TRUE);
+      Position :=Position +Amount;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN --This indicates end of data in CLOB
+        EXIT;
+    END;
+  END LOOP;
+  --Close the output file
+  UTL_FILE.FCLOSE(fp);
+  --Close the CLOB
+  DBMS_LOB.CLOSE (clob_loc);
+END;
+/
+
+-- Getting the Length of a BFILE
+declare
+  bfile_loc BFILE;
+  tot_len INTEGER;
+begin
+  INSERT INTO bfile_tab VALUES (5,BFILENAME('BFILE_DIR','test.bmp'));
+  COMMIT;
+  SELECT bfile_data
+  INTO bfile_loc
+  FROM bfile_tab
+  WHERE id =5;
+  IF (DBMS_LOB.FILEEXISTS(bfile_loc)!=0) THEN
+    IF (DBMS_LOB.FILEISOPEN(bfile_loc)!=1) THEN
+      DBMS_LOB.FILEOPEN(bfile_loc,DBMS_LOB.FILE_READONLY);
+      tot_len :=DBMS_LOB.GETLENGTH(bfile_loc);
+    END IF;
+  END IF;
+  DBMS_LOB.FILECLOSE(bfile_loc);
+  DBMS_OUTPUT.PUT_LINE('The size of the external BMP file is '||TO_CHAR(tot_len));
+END;
+/
+
+-- TO_LOB Function
+CREATE TABLE long_test (id NUMBER,long_data LONG);
+
+INSERT INTO long_test VALUES (100,RPAD('A',200000,'A'));
+
+CREATE TABLE lob_test (id NUMBER,clob_data CLOB);
+
+INSERT INTO lob_test
+  SELECT id,TO_LOB(long_data)
+  FROM long_test;
+
+/*DROP TABLE long_test;*/
+
+declare
+  x long :=rpad('A',100000,'B');
+  y clob;
+begin
+  y :=to_lob(x);
+  insert into lob_test values (200,y);
+end;
+/
+
+update lob_test set clob_data =(select to_lob(long_data)from
+				long_test where id =100)
+where id =200;
+
+-- Copying LONG to LOB with the ALTER TABLE...MODIFY statement
+CREATE TABLE long_test1 (id NUMBER,long_data LONG);
+
+INSERT INTO long_test1 VALUES (100,RPAD('A',200000,'A'));
+
+ALTER TABLE long_test1 MODIFY (long_data CLOB);
+
+-- Copying LONG to LOB with the TO_CLOB and TO_BLOB functions
+declare
+  x long;
+  y clob;
+begin
+  select long_data
+  into x
+  from long_test
+  where id =100;
+  y :=to_clob(x);
+  insert into lob_test values (200,y);
+end;
+/
+declare
+  x varchar2(32767):=rpad('A',32767,'B');
+  y clob;
+begin
+  y :=to_clob(x);
+  insert into lob_test values (200,y);
+end;
+/

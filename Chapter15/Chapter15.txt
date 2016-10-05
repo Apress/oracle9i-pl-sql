@@ -1,0 +1,16 @@
+ALTER SESSION SET PLSQL_COMPILER_FLAGS ='NATIVE';
+
+select uo.object_name,uo.object_type,uss.param_value
+from user_stored_settings uss,user_objects uo
+where uss.object_id =uo.object_id
+and uss.param_name ='plsql_compiler_flags'
+and uo.object_type in ('PROCEDURE','FUNCTION');
+
+CREATE OR REPLACE FUNCTION f_nocopy
+			   (ip_1 IN NUMBER,
+			    op_2 OUT NOCOPY VARCHAR2)
+IS
+BEGIN
+  NULL;
+END;
+/

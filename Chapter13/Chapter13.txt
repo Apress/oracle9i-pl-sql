@@ -1,0 +1,502 @@
+-- Directory.java Class
+import java.io.*;
+public class Directory
+{
+  public static String []list(String dirName)  
+  {
+    String []files =null;
+    File file =new File(dirName);
+    if (file.exists())
+    {
+      if (file.isDirectory())
+      {
+        if (file.canRead())
+        {
+          files =file.list();
+        }
+      }
+    }
+    return files;
+  }
+} 
+
+-- DirMain.java class
+import java.io.*;
+public class DirMain
+{
+  public static void main(String args [])
+  {
+    String []fileNames;
+    //listing of directory
+    fileNames =Directory.list("C:\\lax\\plsql9i\\latest");
+    if (fileNames !=null)
+    {
+      for (int i=0;i<fileNames.length;i++)
+        System.out.println(fileNames[i]);
+    }
+  }
+}
+
+-- Modified Directory.java class
+import java.io.*;
+import java.sql.*;
+import oracle.sql.*;
+import oracle.jdbc.driver.*;
+public class Directory
+{
+  public static oracle.sql.ARRAY list(String dirName)
+  throws SQLException
+  { Connection conn =null; int ret_code;
+    String []files =null ; File file =new File(dirName);
+    if (file.exists())
+    {
+      if (file.isDirectory())
+      {
+        if (file.canRead())
+        {
+          files =file.list();}
+      }
+    }
+    try {
+      //DriverManager.registerDriver(new oracle.jdbc.driver.OracleDriver());
+     //conn =DriverManager.getConnection(
+    //"jdbc:oracle:thin:@ASSOCIAT-SZECHG:1521:Oracle9","plsql9i","plsql9i");
+    conn =new OracleDriver().defaultConnection();
+    ArrayDescriptor x_ad
+      = ArrayDescriptor.createDescriptor("X_NESTED_TABLE",conn);
+    ARRAY x_array =new ARRAY(x_ad,conn,files);
+    conn.close();
+    return x_array;
+    } catch (SQLException e){ret_code =e.getErrorCode();
+      System.err.println(ret_code +e.getMessage());conn.close();return null;}
+  }
+}
+-- Compiling  the above Java method
+javac Directory.java
+
+-- Loading the above Java method into the database
+loadjava –user PLSQL9i/PLSQL9i –oci8 –resolve Directory.class
+
+-- Publishing the above Java method in the database
+create or replace type x_nested_table is table of varchar2(100);
+/
+create or replace function list_dir(p_dir_name VARCHAR2)
+return x_nested_table
+is language java
+name 'Directory.list(java.lang.String) return oracle.sql.ARRAY';
+/
+
+-- Granting the appropriate privileges
+connect system/manger
+GRANT JAVASYSPRIV TO PLSQL9I;
+
+-- Calling the above Java Stored Procedure from PL/SQL
+declare
+  v_tab x_nested_table;
+begin
+  v_tab :=list_dir('c:\lax\plsql9I\latest');
+  for i in 1..v_tab.COUNT loop
+    dbms_output.put_line(v_tab(i));
+  end loop;
+end;
+/
+
+-- Using CREATE OR REPLACE JAVA 
+CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED "Directory" AS
+import java.io.*;
+import java.sql.*;
+import oracle.sql.*;
+import oracle.jdbc.driver.*;
+public class Directory
+{
+  public static oracle.sql.ARRAY list(String dirName)
+  throws SQLException
+  {Connection conn =null; int ret_code;
+   String []files =null ; File file =new File(dirName);
+   if (file.exists())
+   {
+     if (file.isDirectory())
+     {
+       if (file.canRead())
+       {
+         files =file.list();}
+     }
+   }
+   try {
+     conn =new OracleDriver().defaultConnection();
+     ArrayDescriptor x_ad
+       = ArrayDescriptor.createDescriptor("X_NESTED_TABLE",conn);
+     ARRAY x_array =new ARRAY(x_ad,conn,files);
+     conn.close();
+     return x_array;
+   } catch (SQLException e){ret_code =e.getErrorCode();
+     System.err.println(ret_code +e.getMessage());conn.close();return null;}
+  }
+}
+/
+
+-- Loading Java classes using BFILE
+CREATE DIRECTORY bfile_dir AS 'c:\proj ';
+GRANT READ ON DIRECTORY bfile_dir TO PLSQL9I;
+CREATE OR REPLACE JAVA CLASS USING BFILE(bfile_dir,'Directory.class');
+
+-- Using BLOB to load Java classes
+DECLARE
+  bfile_loc BFILE;
+  blob_loc BLOB;
+  bfile_offset NUMBER :=1;
+  blob_offset NUMBER :=1;
+  tot_len INTEGER;
+BEGIN
+  --First INSERT a row with an empty blob
+  INSERT INTO blob_tab VALUES (6,EMPTY_BLOB());
+  COMMIT;
+
+  --SELECT the blob locator FOR UPDATE
+  SELECT blob_data INTO blob_loc FROM blob_tab
+  WHERE id =6 FOR UPDATE;
+
+  --Obtain the BFILE locator
+  bfile_loc :=bfilename('BFILE_DIR','Directory.class');
+
+  --Open the input BFILE
+  dbms_lob.fileopen(bfile_loc,dbms_lob.file_readonly);
+
+  --Open the BLOB
+  dbms_lob.OPEN(blob_loc,dbms_lob.lob_readwrite);
+
+  --Populate the blob with the whole bfile data
+  dbms_lob.LOADBLOBFROMFILE(blob_loc,bfile_loc,dbms_lob.lobmaxsize,bfile_offset,
+  blob_offset)
+
+  --Close the BLOB
+  dbms_lob.close(blob_loc);
+
+  --Close the BFILE
+  dbms_lob.fileclose(bfile_loc);
+  COMMIT;
+END;
+/
+create or replace and resolve Java class using blob
+(select blob_data from blob_tab where id =6);
+/
+
+-- Packaged Procedures and Functions as Call Specs
+-- The Java Class first containing methods list(), delete(), create().
+import java.sql.*;
+import oracle.sql.*;
+import oracle.jdbc.driver.*;
+public class Directory
+{
+  public static oracle.sql.ARRAY list(String dirName)
+  throws SQLException
+  { Connection conn =null; int ret_code;
+    String []files =null ; File file =new File(dirName);
+    if (file.exists()) 
+    {
+      if (file.isDirectory())
+      {
+        if (file.canRead())
+        {
+          files =file.list();}
+      }
+    }
+    try {
+      conn =new OracleDriver().defaultConnection();
+      ArrayDescriptor x_ad
+        = ArrayDescriptor.createDescriptor( "X_NESTED_TABLE",conn);
+      ARRAY x_array = new ARRAY(x_ad,conn,files);
+      conn.close();
+      return x_array;
+    } catch (SQLException e) {ret_code =e.getErrorCode();
+      System.err.println(ret_code +e.getMessage());conn.close();return null;}
+  }
+
+  public static int delete(String dirName)throws Exception
+  { boolean status=false;
+    String []files =null; File dirFile; File file = new File(dirName);
+    if (file.exists())
+    {
+      if (file.isDirectory())
+      {
+        if (file.exists())
+        {
+          if (file.isDirectory())
+          {
+            if (file.canRead())
+            {
+              files =file.list();}
+          }
+        }
+        if (files !=null)
+        {
+          if (files.length>0)
+          {
+            for (int i=0;i<files.length;i++)
+            {
+              dirFile =
+                new File(file.getPath()+File.separator+files[i]);
+              if (dirFile.isFile())
+              {
+                dirFile.delete();}
+              else
+              {
+                delete(file.getPath()+File.separator+files [i]);}
+            }
+          }
+        }
+      status =file.delete();}
+    }
+    if (status)
+    {
+      return 1;}
+    else
+    {
+      return 0;}
+    }
+
+  public static int create(String path,String dirName)
+  {
+    boolean status =false;
+    File file = new File(path+File.separator+dirName);
+    status =file.mkdir();
+    if (status)
+    {
+      return 1;}
+    else
+    {
+      return 0;}
+  }
+}
+
+-- PL/SQL Package Specification and Body for the above Class
+create or replace package pkg_dir
+is
+  function list_dir(p_dir_name VARCHAR2)
+  return x_nested_table;
+  function del_dir(p_dir_name VARCHAR2)
+  return number;
+  function create_dir(p_path VARCHAR2,p_dir_name VARCHAR2)
+  return number;
+end pkg_dir;
+/
+create or replace package body pkg_dir
+is
+  function list_dir(p_dir_name VARCHAR2)
+  return x_nested_table
+  is language java
+  name 'Directory.list(java.lang.String) return oracle.sql.ARRAY';
+  function del_dir(p_dir_name VARCHAR2)
+  return number
+  is language java
+  name 'Directory.delete(java.lang.String) return int';
+  function create_dir(p_path VARCHAR2,p_dir_name VARCHAR2)
+  return number
+  is language java
+  name 'Directory.create(java.lang.String,java.lang.String) return int';
+end pkg_dir;
+/
+
+-- Anonymous PL/SQL block to call the above JSP
+declare
+  ret_code NUMBER;
+begin
+  ret_code :=pkg_dir.create_dir('C:\proj','dir1');
+  if (ret_code =1)then
+    dbms_output.put_line('Directory dir1 successfully created.');
+  else
+    dbms_output.put_line('Directory dir1 creation failed.');
+  end if;
+end;
+/
+
+-- Member methods of SQL Object Type as Call Specs
+-- AddessJsp.java class
+import java.sql.*;
+import oracle.sql.*;
+public class AddressJsp implements SQLData {
+  public String line1;
+  public String line2;
+  public String city;
+  public String state_code;
+  public String zip;
+  String sql_type ="ADDRESS_JSP";
+
+  public AddressJsp(){
+  }
+
+  public AddressJsp (String iline1,String iline2,String icity,String istate,
+                     String izip) {
+    this.line1 =iline1;
+    this.line2 =iline2;
+    this.city =icity;
+    this.state_code =istate;
+    this.zip =izip;
+  }
+
+  public String getSQLTypeName()throws SQLException
+  {
+    return sql_type;
+  }
+
+  public void readSQL(SQLInput stream,String typeName)
+  throws SQLException
+  {
+    sql_type =typeName;
+    line1 =stream.readString();
+    line2 =stream.readString();
+    city =stream.readString();
+    state_code =stream.readString();
+    zip =stream.readString();
+  }
+
+  public void writeSQL(SQLOutput stream)
+  throws SQLException
+  {
+    stream.writeString(line1);
+    stream.writeString(line2);
+    stream.writeString(city);
+    stream.writeString(state_code);
+    stream.writeString(zip);
+  }
+
+  public AddressJsp setAddress (String iline1,String iline2,String icity,
+                                String istate,String izip) {
+    return new AddressJsp(iline1,iline2,icity,istate,izip);
+  }
+
+  public String getAddress() {
+    return this.line1 + " "+ this.line2 + " " + this.city + ", "
+    + this.state_code + " " + this.zip;
+  }
+}
+
+-- Call spec using an object type address_jsp
+CREATE TYPE address_jsp AS OBJECT
+(
+  line1 varchar2(50),
+  line2 varchar2(50),
+  city varchar2(50),
+  state_code varchar2(2),
+  zip varchar2(20),
+
+  MEMBER FUNCTION set_address (p_line1 VARCHAR2,p_line2 VARCHAR2,
+                               p_city VARCHAR2,p_state_code VARCHAR2,
+                               p_zip VARCHAR2) RETURN address_jsp
+  IS LANGUAGE JAVA
+  NAME 'AddressJsp.setAddress (java.lang.String,java.lang.String,
+    java.lang.String,java.lang.String,java.lang.String) return AddressJsp',
+  
+  MEMBER FUNCTION get_address RETURN VARCHAR2
+  IS LANGUAGE JAVA
+  NAME 'AddressJsp.getAddress() return java.lang.String'
+)
+NOT FINAL;
+/
+
+-- Executing Java Stored Procedures 
+-- Executing from SQL DML
+CREATE TABLE dir_list (list_id VARCHAR2(6)PRIMARY KEY,
+                       files x_nested_table )
+NESTED TABLE files STORE AS files_tab;
+
+insert into dir_list values (100,pkg_dir.list_dir('c:\lax\plsql9I\latest'));
+
+SELECT *
+FROM TABLE(SELECT files FROM dir_list WHERE list_id =100);
+
+-- Executing from PL/SQL
+-- Calling the PKG_DIR.LIST_DIR Java Stored Function from PL/SQL
+
+declare
+  v_tab x_nested_table;
+begin
+  v_tab :=pkg_dir.list_dir('c:\lax\plsql9I\latest');
+  for i in 1..v_tab.COUNT loop
+    dbms_output.put_line(v_tab(i));
+  end loop;
+end;
+/
+
+-- Calling the Object Type ADDRESS_JSP Member Methods Used As Call Specs
+
+create table address_master_jsp of address_jsp;
+
+declare
+  a1 address_jsp :=address_jsp(null,null,null,null,null);
+begin
+  insert into address_master_jsp values
+  (a1.set_address('20 Sycamore Dr.',null,'Fremont','CA','94126'));
+end;
+/
+
+select *from address_master_jsp;
+
+select a.get_address()from address_master_jsp a;
+
+-- Java Stored Procedures returning resultsets
+-- RefCursor.java class
+
+//Import JDBC packages
+import java.sql.*;
+import oracle.jdbc.driver.*;
+import oracle.sql.*;
+public class RefCursor {
+  public static ResultSet RefCursor_func()throws SQLException {
+  try {
+       Connection conn =new OracleDriver().defaultConnection();
+       ((OracleConnection)conn).setCreateStatementAsRefCursor(true);
+   
+      //Create a Statement object
+      Statement sql_stmt =conn.createStatement();
+
+     //Create a ResultSet object,execute the query and return a
+    //resultset
+    ResultSet rset =sql_stmt.executeQuery("SELECT hrc_descr,org_long_name "+
+    "FROM org_tab o,hrc_tab h where o.hrc_code = h.hrc_code");
+
+    return rset;
+    } catch (SQLException e) {System.out.println(e.getMessage());return null;}
+  }
+}
+
+-- Compiling the above Java class
+
+javac RefCursor.java
+
+-- Loading the above .class File into the Oracle9i Database
+
+loadjava -user plsql9i/plsql9i -r -oci8 RefCursor.class
+
+-- Publishing the above Java Method in Oracle9i Using a PL/SQL Call Spec
+
+create or replace package pkg_rc as
+  TYPE rc IS REF CURSOR;
+  function f_rc return rc;
+end pkg_rc;
+/
+create or replace package body pkg_rc as
+  function f_rc return rc
+  is language java
+  name 'RefCursor.RefCursor_func() return java.sql.Resultset ';
+end pkg_rc;
+/
+
+-- Calling the above Java Stored Procedure
+declare
+  TYPE rc IS REF CURSOR;
+  r1 rc;
+  v_hrc_descr varchar2(20);
+  v_org_long_name varchar2(60);
+begin
+  r1:=pkg_rc.f_rc;
+  dbms_output.put_line('Hierarchy Org Long Name');
+  dbms_output.put_line('————-——————-');
+  fetch r1 into v_hrc_descr,v_org_long_name;
+  while r1%FOUND loop
+    dbms_output.put_line(rpad(v_hrc_descr,9)||' '||v_org_long_name);
+    fetch r1 into v_hrc_descr,v_org_long_name;
+  end loop;
+  close r1;
+end;
+/
